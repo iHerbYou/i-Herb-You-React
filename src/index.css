@@ -1,0 +1,72 @@
+@font-face {
+  font-family: "SUITE";
+  src: url("https://cafe24img.poxo.com/aisg/resources/font/SUITE/SUITE-Light.woff2") format("woff2");
+  font-weight: 300;
+  font-style: normal;
+}
+@font-face {
+  font-family: "SUITE";
+  src: url("https://cafe24img.poxo.com/aisg/resources/font/SUITE/SUITE-Regular.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+}
+@font-face {
+  font-family: "SUITE";
+  src: url("https://cafe24img.poxo.com/aisg/resources/font/SUITE/SUITE-Medium.woff2") format("woff2");
+  font-weight: 500;
+  font-style: normal;
+}
+@font-face {
+  font-family: "SUITE";
+  src: url("https://cafe24img.poxo.com/aisg/resources/font/SUITE/SUITE-SemiBold.woff2") format("woff2");
+  font-weight: 600;
+  font-style: normal;
+}
+@font-face {
+  font-family: "SUITE";
+  src: url("https://cafe24img.poxo.com/aisg/resources/font/SUITE/SUITE-Bold.woff2") format("woff2");
+  font-weight: 700;
+  font-style: normal;
+}
+@font-face {
+  font-family: "SUITE";
+  src: url("https://cafe24img.poxo.com/aisg/resources/font/SUITE/SUITE-ExtraBold.woff2") format("woff2");
+  font-weight: 800;
+  font-style: normal;
+}
+@font-face {
+  font-family: "SUITE";
+  src: url("https://cafe24img.poxo.com/aisg/resources/font/SUITE/SUITE-Heavy.woff2") format("woff2");
+  font-weight: 900;
+  font-style: normal;
+}
+
+/* Removed @import to satisfy PostCSS rule: @import must precede all other statements */
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'SUITE', 'Noto Sans KR', 'Malgun Gothic', '맑은 고딕', 'Apple SD Gothic Neo', sans-serif;
+  line-height: 1.6;
+  color: #333;
+  background-color: #fff;
+}
+
+a {
+  text-decoration: none;
+  color: inherit;
+}
+
+button {
+  border: none;
+  background: none;
+  cursor: pointer;
+}
+
+ul, ol {
+  list-style: none;
+}
