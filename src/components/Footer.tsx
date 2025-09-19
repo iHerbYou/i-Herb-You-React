@@ -1,4 +1,5 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 
 const Footer: React.FC = () => {
   return (
@@ -31,10 +32,10 @@ const Footer: React.FC = () => {
           <div>
             <h3 className="text-lg font-semibold mb-4">바로가기</h3>
             <div className="space-y-2 text-sm">
-              <a href="#" className="block text-brand-gray-300 hover:text-white">회사소개</a>
+              <Link to="#" className="block text-brand-gray-300 hover:text-white">회사소개</Link>
               <a href="/policies/terms.html" className="block text-brand-gray-300 hover:text-white">이용약관</a>
               <a href="/policies/privacy.html" className="block text-brand-gray-300 hover:text-white">개인정보처리방침</a>
-              <a href="#" className="block text-brand-gray-300 hover:text-white">이용안내</a>
+              <Link to="#" className="block text-brand-gray-300 hover:text-white">이용안내</Link>
             </div>
           </div>
 
@@ -49,7 +50,7 @@ const Footer: React.FC = () => {
               </a>
               <a href="#" className="text-brand-gray-300 hover:text-white">
                 <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
-                  <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
+                  <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814z"/>
                 </svg>
               </a>
               <a href="#" className="text-brand-gray-300 hover:text-white">

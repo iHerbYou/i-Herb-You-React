@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Link } from 'react-router-dom';
 
 const FindEmail: React.FC = () => {
   const [name, setName] = useState('');
@@ -37,7 +38,7 @@ const FindEmail: React.FC = () => {
         {result && (
           <div className="mt-6 text-center text-sm">
             <p className="text-brand-gray-700">찾은 이메일: <span className="font-semibold">{result}</span></p>
-            <a href="/login" className="inline-block mt-3 text-brand-pink hover:text-brand-pink/80">로그인하러 가기</a>
+            <Link to="/login" className="inline-block mt-3 text-brand-pink hover:text-brand-pink/80">로그인하러 가기</Link>
           </div>
         )}
       </div>

@@ -7,6 +7,7 @@ import Signup from './pages/Signup';
 import EventCoupon from './pages/EventCoupon';
 import FindEmail from './pages/FindEmail';
 import ResetPassword from './pages/ResetPassword';
+import NotFound from './pages/NotFound';
 import { ToastProvider } from './contexts/ToastContext';
 import { CartProvider } from './contexts/CartContext';
 
@@ -25,15 +26,15 @@ function App() {
                 <Route path="/find-email" element={<FindEmail />} />
                 <Route path="/event/coupon" element={<EventCoupon />} />
                 <Route path="/reset-password" element={<ResetPassword />} />
+                <Route path="*" element={<NotFound />} />
               </Routes>
             </main>
+            <div className="hidden sm:block">
+              <Footer />
+            </div>
           </CartProvider>
         </ToastProvider>
       </BrowserRouter>
-      
-      <div className="hidden sm:block">
-        <Footer />
-      </div>
     </div>
   );
 }

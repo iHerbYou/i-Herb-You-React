@@ -48,7 +48,7 @@ const Header: React.FC = () => {
       {/* Top Banner */}
       {showTopBanner && (
         <div className="bg-brand-pink/20 text-brand-gray-900 text-center py-3 text-sm relative">
-          <a href="/event/coupon" className="font-medium hover:text-brand-green transition-colors">첫 쇼핑을 지원하는 3,000원 할인 회원가입 쿠폰</a>
+          <Link to="/event/coupon" className="font-medium hover:text-brand-green transition-colors">첫 쇼핑을 지원하는 3,000원 할인 회원가입 쿠폰</Link>
           <button
             onClick={handleHideBannerForToday}
             aria-label="오늘 하루 보지 않기"

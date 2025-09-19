@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Link } from 'react-router-dom';
 
 const Signup: React.FC = () => {
   const [name, setName] = useState('');
@@ -234,7 +235,7 @@ const Signup: React.FC = () => {
         </form>
 
         <div className="mt-6 text-center text-sm">
-          <a href="/login" className="text-brand-gray-700 hover:text-brand-pink">이미 계정이 있으신가요? 로그인</a>
+          <Link to="/login" className="text-brand-gray-700 hover:text-brand-pink underline">이미 계정이 있으신가요? 로그인</Link>
         </div>
       </div>
     </div>
