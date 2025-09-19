@@ -10,8 +10,10 @@ import ResetPassword from './pages/ResetPassword';
 import NotFound from './pages/NotFound';
 import { ToastProvider } from './contexts/ToastContext';
 import { CartProvider } from './contexts/CartContext';
+import { useScrollToTop } from './hooks/useScrollToTop';
 
 function App() {
+  useScrollToTop();
   return (
     <div className="min-h-screen bg-white">
       <BrowserRouter>

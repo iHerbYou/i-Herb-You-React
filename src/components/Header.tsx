@@ -172,7 +172,7 @@ const Header: React.FC = () => {
               <a href="#" className="block px-3 py-2 text-gray-700 hover:text-green-600">영양제</a>
               <a href="#" className="block px-3 py-2 text-gray-700 hover:text-green-600">스포츠</a>
               <a href="#" className="block px-3 py-2 text-gray-700 hover:text-green-600">뷰티</a>
-              <a href="#" className="block px-3 py-2 text-gray-700 hover:text-green-600">로그인</a>
+              <Link to="/login" onClick={() => setIsMenuOpen(false)} className="block px-3 py-2 text-gray-700 hover:text-green-600">로그인</Link>
             </div>
           </div>
         )}
