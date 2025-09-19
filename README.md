@@ -17,8 +17,11 @@
 
 ## ✨ Installation
 
-1) Node.js 설치
-- 현재 Vite 7은 Node.js 20.19+ 또는 22.12+ 이상 권장
+1) Node.js 버전
+```bash
+nvm use
+```
+현재 Vite 7은 Node.js 20.19+ 또는 22.12+ 이상 권장
 
 2) 의존성 설치
 ```bash
@@ -89,6 +92,15 @@ npm run dev       # 개발 서버 실행
 npm run build     # 프로덕션 빌드
 npm run preview   # 빌드 산출물 로컬 미리보기
 ```
+
+## 📄 Pages & Routes
+
+- `/` 메인(Home)
+- `/login` 로그인
+- `/signup` 회원가입
+- `/find-email` 이메일 찾기
+- `/reset-password` 비밀번호 재설정
+- `/event/coupon` 이벤트 쿠폰 안내
 
 ## 📄 License
 

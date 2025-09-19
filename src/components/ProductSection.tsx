@@ -39,10 +39,10 @@ const ProductSection: React.FC<ProductSectionProps> = ({
         {/* Category Filter */}
         {categories.length > 0 && (
           <div className="flex justify-center mb-8">
-            <div className="flex space-x-1 bg-brand-gray-100 rounded-lg p-1">
+            <div className="flex space-x-1 bg-brand-gray-100 rounded-lg p-1 whitespace-nowrap overflow-x-auto sm:overflow-visible w-full sm:w-auto max-w-full sm:max-w-none scrollbar-hide">
               <button
                 onClick={() => setActiveCategory('전체')}
-                className={`px-8 py-2.5 rounded-md text-sm font-medium transition-colors ${
+                className={`w-full sm:px-8 py-2.5 rounded-md text-sm font-medium transition-colors ${
                   activeCategory === '전체'
                     ? 'bg-white text-brand-gray-900 shadow-sm'
                     : 'text-brand-gray-600 hover:text-brand-gray-900'
@@ -54,7 +54,7 @@ const ProductSection: React.FC<ProductSectionProps> = ({
                 <button
                   key={category}
                   onClick={() => setActiveCategory(category)}
-                  className={`px-8 py-2.5 rounded-md text-sm font-medium transition-colors ${
+                  className={`w-full sm:px-8 py-2.5 rounded-md text-sm font-medium transition-colors ${
                     activeCategory === category
                       ? 'bg-white text-brand-gray-900 shadow-sm'
                       : 'text-brand-gray-600 hover:text-brand-gray-900'

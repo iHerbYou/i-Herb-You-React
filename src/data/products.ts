@@ -192,6 +192,62 @@ export const products: Product[] = [
     rating: 4.6,
     reviewCount: 204,
     image: "/images/3bec1ce45301ead6c688a85f57c8dc7d.jpg"
+  },
+  {
+    id: 19,
+    name: "메가 비타민 데일리팩",
+    price: 36000,
+    category: "영양제",
+    isBest: true,
+    rating: 4.5,
+    reviewCount: 187,
+    image: "/images/3bec1ce45301ead6c688a85f57c8dc7d.jpg"
+  },
+  {
+    id: 20,
+    name: "프로바이오틱스 플러스",
+    price: 28000,
+    category: "영양제",
+    rating: 4.3,
+    reviewCount: 92,
+    image: "/images/215b67d8800ede97a2a3fdee95d3a8ea.jpg"
+  },
+  {
+    id: 21,
+    name: "스포츠 리커버리 BCAA",
+    price: 22000,
+    category: "스포츠",
+    rating: 4.2,
+    reviewCount: 74,
+    image: "/images/b1db6f8b9b3265807603f0236e5f05ae.jpg"
+  },
+  {
+    id: 22,
+    name: "하이퍼 포커스 프리워크아웃",
+    price: 27000,
+    category: "스포츠",
+    rating: 4.1,
+    reviewCount: 53,
+    image: "/images/9f4a5198463132562a84f88d94bf4e59.jpg"
+  },
+  {
+    id: 23,
+    name: "뷰티 콜라겐 펩타이드 파우더",
+    price: 32000,
+    category: "뷰티",
+    isExclusive: true,
+    rating: 4.4,
+    reviewCount: 88,
+    image: "/images/ba076ba8dc27cd49d1200ace2a3a1b8d.jpg"
+  },
+  {
+    id: 24,
+    name: "하이드라 글로우 히알루론 캡슐",
+    price: 34000,
+    category: "뷰티",
+    rating: 4.6,
+    reviewCount: 132,
+    image: "/images/ca30d9596a9ef11bd8084a538fedefd3.jpg"
   }
 ];
 

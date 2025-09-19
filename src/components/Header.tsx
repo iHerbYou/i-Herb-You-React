@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { categories } from '../data/categories';
 import type { TopCategory, MidCategory } from '../data/categories';
 
@@ -32,17 +33,32 @@ const Header: React.FC = () => {
     setShowTopBanner(false);
   };
 
+  const navigate = useNavigate();
+
+  const handleLogout = () => {
+    try {
+      if (typeof window !== 'undefined') {
+        window.sessionStorage.removeItem('auth');
+      }
+    } catch {}
+    navigate('/login');
+  };
+
   return (
     <header className="bg-white shadow-sm border-b">
       {/* Top Banner */}
       {showTopBanner && (
         <div className="bg-brand-pink/20 text-brand-gray-900 text-center py-3 text-sm relative">
-          <span className="font-medium">첫 쇼핑을 지원하는 3,000원 할인 회원가입 쿠폰</span>
+          <a href="/event/coupon" className="font-medium hover:text-brand-green transition-colors">첫 쇼핑을 지원하는 3,000원 할인 회원가입 쿠폰</a>
           <button
             onClick={handleHideBannerForToday}
-            className="absolute right-4 top-1/2 transform -translate-y-1/2 text-xs underline hover:text-brand-gray-700"
+            aria-label="오늘 하루 보지 않기"
+            className="absolute right-3 sm:right-4 top-1/2 transform -translate-y-1/2 text-xs hover:text-brand-gray-700 flex items-center justify-center"
           >
-            오늘 하루 보지 않기
+            <span className="hidden sm:inline underline">오늘 하루 보지 않기</span>
+            <svg className="inline sm:hidden w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
           </button>
         </div>
       )}
@@ -53,7 +69,7 @@ const Header: React.FC = () => {
           {/* Logo */}
           <div className="flex-shrink-0">
             <h1 className="text-3xl font-bold text-brand-green">
-              <a href="/">iHerbYou</a>
+              <Link to="/">iHerbYou</Link>
             </h1>
           </div>
 
@@ -110,7 +126,7 @@ const Header: React.FC = () => {
 
           {/* User Actions */}
           <div className="hidden md:flex items-center space-x-6">
-            <a href="#" className="text-brand-gray-700 hover:text-brand-pink text-sm font-medium">로그인</a>
+            <Link to="/login" className="text-brand-gray-700 hover:text-brand-pink text-sm font-medium">로그인</Link>
             <button aria-label="장바구니" className="relative text-brand-gray-700 hover:text-brand-pink">
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.25 3h1.5l1.5 9.75A2.25 2.25 0 007.5 15.75h7.5a2.25 2.25 0 002.25-1.875l1.125-6.75H6.375" />
@@ -120,17 +136,18 @@ const Header: React.FC = () => {
               <span className="absolute -top-1 -right-1 bg-brand-red text-white text-[10px] min-w-[16px] h-[16px] px-1 rounded-full flex items-center justify-center border border-white">0</span>
             </button>
             <div className="relative group">
-              <button className="bg-brand-pink text-brand-gray-900 px-4 py-2 rounded-md text-sm hover:bg-brand-pink/80 font-medium">
-                고객센터
+              <button className="bg-brand-green text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-brand-darkGreen">
+                마이페이지
               </button>
-              {/* Customer Service Dropdown */}
-              <div className="absolute top-full right-0 mt-2 w-48 bg-white shadow-lg rounded-md border z-50 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200">
+              <div className="absolute top-full right-0 mt-2 w-52 bg-white shadow-lg rounded-md border z-50 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200">
                 <div className="py-2">
-                  <a href="#" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">공지사항</a>
-                  <a href="#" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">상품 사용후기</a>
-                  <a href="#" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">상품 Q&A</a>
-                  <a href="#" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">자유게시판</a>
-                  <a href="#" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">갤러리</a>
+                  <Link to="/account" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">내 계정</Link>
+                  <Link to="/orders" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">주문 내역</Link>
+                  <Link to="/wishlist" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">위시리스트</Link>
+                  <Link to="/reviews" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">구매후기</Link>
+                  <div className="px-2 pt-1">
+                    <button onClick={handleLogout} className="w-full px-3 py-2 rounded-md text-sm font-medium bg-white text-brand-green border border-brand-green hover:bg-brand-green/10">로그아웃</button>
+                  </div>
                 </div>
               </div>
             </div>
@@ -153,11 +170,9 @@ const Header: React.FC = () => {
         {isMenuOpen && (
           <div className="md:hidden">
             <div className="px-2 pt-2 pb-3 space-y-1 sm:px-3 bg-gray-50">
-              <a href="#" className="block px-3 py-2 text-gray-700 hover:text-green-600">식품/간식</a>
-              <a href="#" className="block px-3 py-2 text-gray-700 hover:text-green-600">영양제/보조제</a>
-              <a href="#" className="block px-3 py-2 text-gray-700 hover:text-green-600">드링크</a>
-              <a href="#" className="block px-3 py-2 text-gray-700 hover:text-green-600">기타</a>
-              <a href="#" className="block px-3 py-2 text-gray-700 hover:text-green-600">회원가입</a>
+              <a href="#" className="block px-3 py-2 text-gray-700 hover:text-green-600">영양제</a>
+              <a href="#" className="block px-3 py-2 text-gray-700 hover:text-green-600">스포츠</a>
+              <a href="#" className="block px-3 py-2 text-gray-700 hover:text-green-600">뷰티</a>
               <a href="#" className="block px-3 py-2 text-gray-700 hover:text-green-600">로그인</a>
             </div>
           </div>

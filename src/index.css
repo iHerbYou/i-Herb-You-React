@@ -1,44 +1,51 @@
 @font-face {
   font-family: "SUITE";
-  src: url("https://cafe24img.poxo.com/aisg/resources/font/SUITE/SUITE-Light.woff2") format("woff2");
+  src: url("https://cafe24img.poxo.com/file.cafe24cos.com/aisg/resources/font/SUITE/SUITE-Light.woff2") format("woff2");
   font-weight: 300;
   font-style: normal;
+  font-display: swap;
 }
 @font-face {
   font-family: "SUITE";
-  src: url("https://cafe24img.poxo.com/aisg/resources/font/SUITE/SUITE-Regular.woff2") format("woff2");
+  src: url("https://cafe24img.poxo.com/file.cafe24cos.com/aisg/resources/font/SUITE/SUITE-Regular.woff2") format("woff2");
   font-weight: 400;
   font-style: normal;
+  font-display: swap;
 }
 @font-face {
   font-family: "SUITE";
-  src: url("https://cafe24img.poxo.com/aisg/resources/font/SUITE/SUITE-Medium.woff2") format("woff2");
+  src: url("https://cafe24img.poxo.com/file.cafe24cos.com/aisg/resources/font/SUITE/SUITE-Medium.woff2") format("woff2");
   font-weight: 500;
   font-style: normal;
+  font-display: swap;
 }
 @font-face {
   font-family: "SUITE";
-  src: url("https://cafe24img.poxo.com/aisg/resources/font/SUITE/SUITE-SemiBold.woff2") format("woff2");
+  src: url("https://cafe24img.poxo.com/file.cafe24cos.com/aisg/resources/font/SUITE/SUITE-SemiBold.woff2") format("woff2");
   font-weight: 600;
   font-style: normal;
+  font-display: swap;
 }
 @font-face {
   font-family: "SUITE";
-  src: url("https://cafe24img.poxo.com/aisg/resources/font/SUITE/SUITE-Bold.woff2") format("woff2");
+  src: url("https://cafe24img.poxo.com/file.cafe24cos.com/aisg/resources/font/SUITE/SUITE-Bold.woff2") format("woff2");
   font-weight: 700;
   font-style: normal;
+  font-display: swap;
 }
 @font-face {
   font-family: "SUITE";
-  src: url("https://cafe24img.poxo.com/aisg/resources/font/SUITE/SUITE-ExtraBold.woff2") format("woff2");
+  src: url("https://cafe24img.poxo.com/file.cafe24cos.com/aisg/resources/font/SUITE/SUITE-ExtraBold.woff2") format("woff2");
   font-weight: 800;
   font-style: normal;
+  font-display: swap;
 }
 @font-face {
   font-family: "SUITE";
-  src: url("https://cafe24img.poxo.com/aisg/resources/font/SUITE/SUITE-Heavy.woff2") format("woff2");
+  src: url("https://cafe24img.poxo.com/file.cafe24cos.com/aisg/resources/font/SUITE/SUITE-Heavy.woff2") format("woff2");
   font-weight: 900;
   font-style: normal;
+  font-display: swap;
 }
 
 /* Removed @import to satisfy PostCSS rule: @import must precede all other statements */
@@ -54,6 +61,7 @@ body {
   line-height: 1.6;
   color: #333;
   background-color: #fff;
+  overflow-x: hidden;
 }
 
 a {
@@ -69,4 +77,13 @@ button {
 
 ul, ol {
   list-style: none;
+}
+
+/* Hide scrollbars for category tabs on mobile (Webkit) */
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+/* Hide scrollbars for category tabs on mobile (Firefox) */
+.scrollbar-hide {
+  scrollbar-width: none;
 }
