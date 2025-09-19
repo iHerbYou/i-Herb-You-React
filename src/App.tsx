@@ -10,16 +10,16 @@ import ResetPassword from './pages/ResetPassword';
 import NotFound from './pages/NotFound';
 import { ToastProvider } from './contexts/ToastContext';
 import { CartProvider } from './contexts/CartContext';
-import { useScrollToTop } from './hooks/useScrollToTop';
+import ScrollToTop from './components/ScrollToTop';
 
 function App() {
-  useScrollToTop();
   return (
     <div className="min-h-screen bg-white">
       <BrowserRouter>
         <ToastProvider>
           <CartProvider>
             <Header />
+            <ScrollToTop />
             <main>
               <Routes>
                 <Route path="/" element={<Home />} />
