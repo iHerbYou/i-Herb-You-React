@@ -5,7 +5,6 @@ import type { TopCategory, MidCategory } from '../data/categories';
 
 const Header: React.FC = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [isCategoryOpen, setIsCategoryOpen] = useState(false);
   const [showTopBanner, setShowTopBanner] = useState(true);
 
   useEffect(() => {
