@@ -35,7 +35,6 @@ const Footer: React.FC = () => {
               <Link to="#" className="block text-brand-gray-300 hover:text-white">회사소개</Link>
               <a href="/policies/terms.html" className="block text-brand-gray-300 hover:text-white">이용약관</a>
               <a href="/policies/privacy.html" className="block text-brand-gray-300 hover:text-white">개인정보처리방침</a>
-              <Link to="#" className="block text-brand-gray-300 hover:text-white">이용안내</Link>
             </div>
           </div>
 

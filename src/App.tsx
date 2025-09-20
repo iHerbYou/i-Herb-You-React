@@ -9,6 +9,8 @@ import FindEmail from './pages/FindEmail';
 import ResetPassword from './pages/ResetPassword';
 import NotFound from './pages/NotFound';
 import CategoryList from './pages/CategoryList';
+import ProductDetail from './pages/ProductDetail';
+import ProductQnA from './pages/ProductQnA';
 import { ToastProvider } from './contexts/ToastContext';
 import { CartProvider } from './contexts/CartContext';
 import ScrollToTop from './components/ScrollToTop';
@@ -27,6 +29,8 @@ function App() {
                 <Route path="/c/:top" element={<CategoryList />} />
                 <Route path="/c/:top/:mid" element={<CategoryList />} />
                 <Route path="/c/:top/:mid/:sub" element={<CategoryList />} />
+                <Route path="/p/:id" element={<ProductDetail />} />
+                <Route path="/p/:id/qna" element={<ProductQnA />} />
                 <Route path="/login" element={<Login />} />
                 <Route path="/signup" element={<Signup />} />
                 <Route path="/find-email" element={<FindEmail />} />
