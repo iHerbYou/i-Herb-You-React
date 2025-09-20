@@ -72,14 +72,14 @@ const Header: React.FC = () => {
             </h1>
           </div>
 
-          {/* Desktop Navigation with Categories */}
-          <nav className="hidden md:flex space-x-6">
+          {/* Desktop Navigation with Categories (lg+) */}
+          <nav className="hidden lg:flex space-x-6">
             {categories.map((top: TopCategory) => (
               <div
                 key={top.name}
                 className="relative group"
               >
-                <button className="relative inline-flex items-center h-20 px-2 text-brand-gray-800 font-medium after:content-[''] after:block after:absolute after:bottom-0 after:left-0 after:h-[2px] after:bg-brand-pink after:w-full after:scale-x-0 group-hover:after:scale-x-100 after:origin-right group-hover:after:origin-left after:transition after:duration-500">
+                <button onClick={() => navigate(`/c/${encodeURIComponent(top.name)}`)} className="relative inline-flex items-center h-20 px-2 text-brand-gray-800 font-medium after:content-[''] after:block after:absolute after:bottom-0 after:left-0 after:h-[2px] after:bg-brand-pink after:w-full after:scale-x-0 group-hover:after:scale-x-100 after:origin-right group-hover:after:origin-left after:transition after:duration-500">
                   <span>{top.name}</span>
                   <svg className="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
@@ -91,12 +91,12 @@ const Header: React.FC = () => {
                   <div className="grid grid-cols-3 gap-4 p-4 max-h-[60vh] overflow-y-auto">
                     {top.children.map((mid: MidCategory) => (
                       <div key={mid.name}>
-                        <div className="text-sm font-semibold text-gray-900 hover:text-brand-pink cursor-pointer transition-colors mb-2">{mid.name}</div>
+                        <div onClick={()=>navigate(`/c/${encodeURIComponent(top.name)}/${encodeURIComponent(mid.name)}`)} className="text-sm font-semibold text-gray-900 hover:text-brand-pink cursor-pointer transition-colors mb-2">{mid.name}</div>
                         {mid.items && (
                           <ul className="space-y-1">
                             {mid.items.map((s) => (
                               <li key={s.name}>
-                                <a href="#" className="block text-sm text-gray-700 hover:text-brand-pink">{s.name}</a>
+                                <button onClick={()=>navigate(`/c/${encodeURIComponent(top.name)}/${encodeURIComponent(mid.name)}/${encodeURIComponent(s.name)}`)} className="block text-left w-full text-sm text-gray-700 hover:text-brand-pink">{s.name}</button>
                               </li>
                             ))}
                           </ul>
@@ -123,8 +123,8 @@ const Header: React.FC = () => {
             </div>
           </div>
 
-          {/* User Actions */}
-          <div className="hidden md:flex items-center space-x-6">
+          {/* User Actions (lg+) */}
+          <div className="hidden lg:flex items-center space-x-6">
             <Link to="/login" className="text-brand-gray-700 hover:text-brand-pink text-sm font-medium">로그인</Link>
             <button aria-label="장바구니" className="relative text-brand-gray-700 hover:text-brand-pink">
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -152,8 +152,8 @@ const Header: React.FC = () => {
             </div>
           </div>
 
-          {/* Mobile menu button */}
-          <div className="md:hidden">
+          {/* Mobile menu button (visible below lg) */}
+          <div className="lg:hidden">
             <button
               onClick={() => setIsMenuOpen(!isMenuOpen)}
               className="text-gray-700 hover:text-green-600"
@@ -165,9 +165,9 @@ const Header: React.FC = () => {
           </div>
         </div>
 
-        {/* Mobile Navigation */}
+        {/* Mobile Navigation (visible below lg) */}
         {isMenuOpen && (
-          <div className="md:hidden">
+          <div className="lg:hidden">
             <div className="px-2 pt-2 pb-3 space-y-1 sm:px-3 bg-gray-50">
               <a href="#" className="block px-3 py-2 text-gray-700 hover:text-green-600">영양제</a>
               <a href="#" className="block px-3 py-2 text-gray-700 hover:text-green-600">스포츠</a>

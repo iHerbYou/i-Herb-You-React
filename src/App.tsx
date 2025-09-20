@@ -8,6 +8,7 @@ import EventCoupon from './pages/EventCoupon';
 import FindEmail from './pages/FindEmail';
 import ResetPassword from './pages/ResetPassword';
 import NotFound from './pages/NotFound';
+import CategoryList from './pages/CategoryList';
 import { ToastProvider } from './contexts/ToastContext';
 import { CartProvider } from './contexts/CartContext';
 import ScrollToTop from './components/ScrollToTop';
@@ -23,6 +24,9 @@ function App() {
             <main>
               <Routes>
                 <Route path="/" element={<Home />} />
+                <Route path="/c/:top" element={<CategoryList />} />
+                <Route path="/c/:top/:mid" element={<CategoryList />} />
+                <Route path="/c/:top/:mid/:sub" element={<CategoryList />} />
                 <Route path="/login" element={<Login />} />
                 <Route path="/signup" element={<Signup />} />
                 <Route path="/find-email" element={<FindEmail />} />

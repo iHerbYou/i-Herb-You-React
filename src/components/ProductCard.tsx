@@ -5,9 +5,10 @@ import { useCart } from '../contexts/CartContext';
 
 interface ProductCardProps {
   product: Product;
+  onAddToCart?: (product: Product) => void;
 }
 
-const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
+const ProductCard: React.FC<ProductCardProps> = ({ product, onAddToCart }) => {
   const { showToast } = useToast();
   const { addToCart } = useCart();
 
@@ -20,6 +21,10 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
   };
 
   const handleAddToCart = () => {
+    if (onAddToCart) {
+      onAddToCart(product);
+      return;
+    }
     addToCart(product, 1);
   };
 
