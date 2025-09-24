@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
+import { post } from '../lib/api';
 
 const Signup: React.FC = () => {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
+  const [phoneNumber, setPhoneNumber] = useState('');
   const [agreeAll, setAgreeAll] = useState(false);
   const [agreeTerms, setAgreeTerms] = useState(false);
   const [agreePrivacy, setAgreePrivacy] = useState(false);
@@ -13,20 +15,23 @@ const Signup: React.FC = () => {
   const [isPrivacyOpen, setIsPrivacyOpen] = useState(false);
   const [termsHtml, setTermsHtml] = useState('');
   const [privacyHtml, setPrivacyHtml] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [successOpen, setSuccessOpen] = useState(false);
+  const [successMsg, setSuccessMsg] = useState<string>('');
+
+  const navigate = useNavigate();
 
   const fetchHtml = async (path: string): Promise<string> => {
     try {
       const res = await fetch(path, { cache: 'no-store' });
       if (res.ok) {
         const text = await res.text();
-        // Guard: if dev server returned the app index (header/footer), ignore
         const looksLikeAppShell = text.includes('<div id="root"') || text.includes('/@vite/client');
         if (looksLikeAppShell) return '';
         return text;
       }
-    } catch {
-      // ignore network errors; will fall back to inline summary
-    }
+    } catch {}
     return '';
   };
 
@@ -46,17 +51,61 @@ const Signup: React.FC = () => {
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError(null);
+    if (password.length < 8 || password.length > 20) {
+      setError('비밀번호는 8~20자여야 합니다.');
+      return;
+    }
     if (password !== confirm) {
-      alert('비밀번호가 일치하지 않습니다.');
+      setError('비밀번호가 일치하지 않습니다.');
       return;
     }
     if (!agreeTerms || !agreePrivacy) {
-      alert('서비스 이용약관과 개인정보 처리방침에 동의해 주세요.');
+      setError('서비스 이용약관과 개인정보 처리방침에 동의해 주세요.');
       return;
     }
-    alert(`회원가입 시도: ${name} / ${email}`);
+    try {
+      setSubmitting(true);
+      const payload: { name: string; email: string; password: string; phoneNumber?: string } = { name, email, password };
+      if (phoneNumber.trim()) payload.phoneNumber = phoneNumber.trim();
+      const res = await post<{ email: string; message: string }>(
+        '/api/users/signup',
+        payload,
+        { credentials: 'include' }
+      );
+      try {
+        window.sessionStorage.setItem('prefillEmail', email);
+      } catch {}
+      setSuccessMsg(res?.message || '회원가입이 완료되었습니다.');
+      setSuccessOpen(true);
+    } catch (err: any) {
+      const msg = err instanceof Error ? err.message : '회원가입 중 오류가 발생했습니다.';
+      setError(msg);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const canEnable =
+    !!name.trim() &&
+    !!email.trim() &&
+    password.length >= 8 &&
+    confirm.length >= 8 &&
+    agreeTerms &&
+    agreePrivacy &&
+    !submitting;
+
+  const handlePhoneChange = (raw: string) => {
+    const digits = raw.replace(/\D/g, '').slice(0, 11); // keep up to 11 digits
+    let formatted = digits;
+    if (digits.length > 3 && digits.length <= 7) {
+      formatted = `${digits.slice(0, 3)}-${digits.slice(3)}`;
+    } else if (digits.length > 7) {
+      formatted = `${digits.slice(0, 3)}-${digits.slice(3, 7)}-${digits.slice(7, 11)}`;
+    }
+    setPhoneNumber(formatted);
   };
 
   return (
@@ -89,13 +138,15 @@ const Signup: React.FC = () => {
             />
           </div>
           <div>
-            <label htmlFor="password" className="block text-sm font-medium text-brand-gray-700 mb-1">비밀번호</label>
+            <label htmlFor="password" className="block text-sm font-medium text-brand-gray-700 mb-1">비밀번호 (8~20자)</label>
             <input
               id="password"
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
+              minLength={8}
+              maxLength={20}
               className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-pink"
               placeholder="••••••••"
             />
@@ -108,8 +159,25 @@ const Signup: React.FC = () => {
               value={confirm}
               onChange={(e) => setConfirm(e.target.value)}
               required
+              minLength={8}
+              maxLength={20}
               className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-pink"
               placeholder="••••••••"
+            />
+          </div>
+          <div>
+            <label htmlFor="phone" className="block text-sm font-medium text-brand-gray-700 mb-1">휴대폰 번호 (선택)</label>
+            <input
+              id="phone"
+              type="tel"
+              inputMode="tel"
+              value={phoneNumber}
+              onChange={(e) => handlePhoneChange(e.target.value)}
+              maxLength={13}
+              pattern="^010-\d{4}-\d{4}$"
+              title="010-1234-5678 형식으로 입력하세요"
+              placeholder="010-1234-5678"
+              className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-pink"
             />
           </div>
                     {/* Agreements */}
@@ -221,16 +289,21 @@ const Signup: React.FC = () => {
               </div>
             </div>
           )}
+
+          {error && (
+            <div className="text-sm text-red-600">{error}</div>
+          )}
+
           <button
             type="submit"
-            disabled={!agreeTerms || !agreePrivacy}
+            disabled={!canEnable}
             className={`w-full py-2.5 rounded-md text-sm font-medium transition-colors ${
-              agreeTerms && agreePrivacy
+              canEnable
                 ? 'bg-brand-pink text-brand-gray-900 hover:bg-brand-pink/80'
                 : 'bg-gray-200 text-gray-400 cursor-not-allowed'
             }`}
           >
-            회원가입
+            {submitting ? '가입 중...' : '회원가입'}
           </button>
         </form>
 
@@ -238,6 +311,31 @@ const Signup: React.FC = () => {
           <Link to="/login" className="text-brand-gray-700 hover:text-brand-pink underline">이미 계정이 있으신가요? 로그인</Link>
         </div>
       </div>
+
+      {/* Success Modal */}
+      {successOpen && (
+        <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center px-4" role="dialog" aria-modal="true">
+          <div className="bg-white w-full max-w-md rounded-2xl border shadow-lg mx-auto overflow-hidden">
+            <div className="px-6 py-5 border-b flex items-center gap-2">
+              <div className="w-8 h-8 rounded-full bg-brand-green text-white flex items-center justify-center">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7"/></svg>
+              </div>
+              <h2 className="text-base font-semibold text-brand-gray-900">회원가입 완료</h2>
+            </div>
+            <div className="px-6 py-5 text-sm text-brand-gray-800">
+              <p>{successMsg}</p>
+            </div>
+            <div className="px-6 py-4 border-t flex justify-end">
+              <button
+                onClick={() => { setSuccessOpen(false); navigate('/login'); }}
+                className="px-4 py-2 rounded-md text-sm bg-brand-green text-white hover:bg-brand-darkGreen"
+              >
+                확인
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

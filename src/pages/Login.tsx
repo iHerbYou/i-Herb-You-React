@@ -1,9 +1,19 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 
 const Login: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+
+  useEffect(() => {
+    try {
+      const prefill = window.sessionStorage.getItem('prefillEmail');
+      if (prefill) {
+        setEmail(prefill);
+        window.sessionStorage.removeItem('prefillEmail');
+      }
+    } catch {}
+  }, []);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
