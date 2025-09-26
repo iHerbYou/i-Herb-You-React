@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { post } from '../lib/api';
+import { signup as authSignup } from '../lib/auth';
 
 const Signup: React.FC = () => {
   const [name, setName] = useState('');
@@ -21,6 +21,20 @@ const Signup: React.FC = () => {
   const [successMsg, setSuccessMsg] = useState<string>('');
 
   const navigate = useNavigate();
+
+  // Close success modal with Enter key
+  useEffect(() => {
+    if (!successOpen) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        setSuccessOpen(false);
+        navigate('/login');
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [successOpen, navigate]);
 
   const fetchHtml = async (path: string): Promise<string> => {
     try {
@@ -70,14 +84,7 @@ const Signup: React.FC = () => {
       setSubmitting(true);
       const payload: { name: string; email: string; password: string; phoneNumber?: string } = { name, email, password };
       if (phoneNumber.trim()) payload.phoneNumber = phoneNumber.trim();
-      const res = await post<{ email: string; message: string }>(
-        '/api/users/signup',
-        payload,
-        { credentials: 'include' }
-      );
-      try {
-        window.sessionStorage.setItem('prefillEmail', email);
-      } catch {}
+      const res = await authSignup(payload);
       setSuccessMsg(res?.message || '회원가입이 완료되었습니다.');
       setSuccessOpen(true);
     } catch (err: any) {
@@ -317,10 +324,19 @@ const Signup: React.FC = () => {
         <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center px-4" role="dialog" aria-modal="true">
           <div className="bg-white w-full max-w-md rounded-2xl border shadow-lg mx-auto overflow-hidden">
             <div className="px-6 py-5 border-b flex items-center gap-2">
-              <div className="w-8 h-8 rounded-full bg-brand-green text-white flex items-center justify-center">
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7"/></svg>
+              <div className="relative">
+                <div className="w-8 h-8 rounded-full bg-brand-green text-white flex items-center justify-center">
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7"/></svg>
+                </div>
+                {/* Sparkles for a cute feel */}
+                <svg className="absolute -top-1 -right-1 w-4 h-4 text-yellow-400" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                  <path d="M10 2l1.6 3.7L15 7.2l-3.4 1.5L10 12l-1.6-3.3L5 7.2l3.4-1.5L10 2z"/>
+                </svg>
+                <svg className="absolute -bottom-1 -left-1 w-3 h-3 text-pink-300" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                  <path d="M10 2l1.2 2.8L14 6l-2.8 1.2L10 10 8.8 7.2 6 6l2.8-1.2L10 2z"/>
+                </svg>
               </div>
-              <h2 className="text-base font-semibold text-brand-gray-900">회원가입 완료</h2>
+              <h2 className="text-base font-semibold text-brand-gray-900">회원가입 완료 <span aria-hidden="true">✨</span></h2>
             </div>
             <div className="px-6 py-5 text-sm text-brand-gray-800">
               <p>{successMsg}</p>

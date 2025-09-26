@@ -2,10 +2,21 @@ import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { categories } from '../data/categories';
 import type { TopCategory, MidCategory } from '../data/categories';
+import { logout as authLogout } from '../lib/auth';
 
 const Header: React.FC = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [showTopBanner, setShowTopBanner] = useState(true);
+  const [isAuthed, setIsAuthed] = useState<boolean>(() => {
+    try {
+      return !!(typeof window !== 'undefined' && window.sessionStorage.getItem('auth'));
+    } catch {
+      return false;
+    }
+  });
+  const [logoutSuccessOpen, setLogoutSuccessOpen] = useState(false);
+  const [logoutMsg, setLogoutMsg] = useState<string>('');
+  const navigate = useNavigate();
 
   useEffect(() => {
     try {
@@ -18,6 +29,38 @@ const Header: React.FC = () => {
       // ignore storage errors
     }
   }, []);
+
+  useEffect(() => {
+    const syncAuth = () => {
+      try {
+        const raw = window.sessionStorage.getItem('auth');
+        setIsAuthed(!!raw);
+      } catch {
+        setIsAuthed(false);
+      }
+    };
+    const onAuthChange = () => syncAuth();
+    window.addEventListener('storage', syncAuth);
+    window.addEventListener('auth:change', onAuthChange as EventListener);
+    return () => {
+      window.removeEventListener('storage', syncAuth);
+      window.removeEventListener('auth:change', onAuthChange as EventListener);
+    };
+  }, []);
+
+  // Close logout success modal with Enter key
+  useEffect(() => {
+    if (!logoutSuccessOpen) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        setLogoutSuccessOpen(false);
+        navigate('/');
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [logoutSuccessOpen, navigate]);
 
   const handleHideBannerForToday = () => {
     const endOfDay = new Date();
@@ -32,18 +75,15 @@ const Header: React.FC = () => {
     setShowTopBanner(false);
   };
 
-  const navigate = useNavigate();
-
-  const handleLogout = () => {
-    try {
-      if (typeof window !== 'undefined') {
-        window.sessionStorage.removeItem('auth');
-      }
-    } catch {}
-    navigate('/login');
+  const handleLogout = async () => {
+    await authLogout();
+    setIsAuthed(false);
+    setLogoutMsg('로그아웃이 완료되었습니다.');
+    setLogoutSuccessOpen(true);
   };
 
   return (
+    <>
     <header className="bg-white shadow-sm border-b">
       {/* Top Banner */}
       {showTopBanner && (
@@ -125,7 +165,11 @@ const Header: React.FC = () => {
 
           {/* User Actions (lg+) */}
           <div className="hidden lg:flex items-center space-x-6">
-            <Link to="/login" className="text-brand-gray-700 hover:text-brand-pink text-sm font-medium">로그인</Link>
+            {!isAuthed ? (
+              <Link to="/login" className="text-brand-gray-700 hover:text-brand-pink text-sm font-medium">로그인</Link>
+            ) : (
+              <button onClick={handleLogout} className="text-brand-gray-700 hover:text-brand-pink text-sm font-medium">로그아웃</button>
+            )}
             <button aria-label="장바구니" className="relative text-brand-gray-700 hover:text-brand-pink">
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.25 3h1.5l1.5 9.75A2.25 2.25 0 007.5 15.75h7.5a2.25 2.25 0 002.25-1.875l1.125-6.75H6.375" />
@@ -134,22 +178,24 @@ const Header: React.FC = () => {
               </svg>
               <span className="absolute -top-1 -right-1 bg-brand-red text-white text-[10px] min-w-[16px] h-[16px] px-1 rounded-full flex items-center justify-center border border-white">0</span>
             </button>
-            <div className="relative group">
-              <button className="bg-brand-green text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-brand-darkGreen">
-                마이페이지
-              </button>
-              <div className="absolute top-full right-0 mt-2 w-52 bg-white shadow-lg rounded-md border z-50 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200">
-                <div className="py-2">
-                  <Link to="/account" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">내 계정</Link>
-                  <Link to="/orders" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">주문 내역</Link>
-                  <Link to="/wishlist" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">위시리스트</Link>
-                  <Link to="/reviews" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">구매후기</Link>
-                  <div className="px-2 pt-1">
-                    <button onClick={handleLogout} className="w-full px-3 py-2 rounded-md text-sm font-medium bg-white text-brand-green border border-brand-green hover:bg-brand-green/10">로그아웃</button>
+            {isAuthed && (
+              <div className="relative group">
+                <button className="bg-brand-green text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-brand-darkGreen">
+                  마이페이지
+                </button>
+                <div className="absolute top-full right-0 mt-2 w-52 bg-white shadow-lg rounded-md border z-50 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200">
+                  <div className="py-2">
+                    <Link to="/account" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">내 계정</Link>
+                    <Link to="/orders" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">주문 내역</Link>
+                    <Link to="/wishlist" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">위시리스트</Link>
+                    <Link to="/reviews" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">구매후기</Link>
+                    <div className="px-2 pt-1">
+                      <button onClick={handleLogout} className="w-full px-3 py-2 rounded-md text-sm font-medium bg-white text-brand-green border border-brand-green hover:bg-brand-green/10">로그아웃</button>
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
+            )}
           </div>
 
           {/* Mobile menu button (visible below lg) */}
@@ -172,12 +218,48 @@ const Header: React.FC = () => {
               <a href="#" className="block px-3 py-2 text-gray-700 hover:text-green-600">영양제</a>
               <a href="#" className="block px-3 py-2 text-gray-700 hover:text-green-600">스포츠</a>
               <a href="#" className="block px-3 py-2 text-gray-700 hover:text-green-600">뷰티</a>
-              <Link to="/login" onClick={() => setIsMenuOpen(false)} className="block px-3 py-2 text-gray-700 hover:text-green-600">로그인</Link>
+              {!isAuthed ? (
+                <Link to="/login" onClick={() => setIsMenuOpen(false)} className="block px-3 py-2 text-gray-700 hover:text-green-600">로그인</Link>
+              ) : (
+                <button onClick={() => { setIsMenuOpen(false); handleLogout(); }} className="block w-full text-left px-3 py-2 text-gray-700 hover:text-green-600">로그아웃</button>
+              )}
             </div>
           </div>
         )}
       </div>
     </header>
+    {logoutSuccessOpen && (
+      <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center px-4" role="dialog" aria-modal="true">
+        <div className="bg-white w-full max-w-md rounded-2xl border shadow-lg mx-auto overflow-hidden">
+          <div className="px-6 py-5 border-b flex items-center gap-2">
+            <div className="relative">
+              <div className="w-8 h-8 rounded-full bg-brand-green text-white flex items-center justify-center">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7"/></svg>
+              </div>
+              <svg className="absolute -top-1 -right-1 w-4 h-4 text-yellow-400" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                <path d="M10 2l1.6 3.7L15 7.2l-3.4 1.5L10 12l-1.6-3.3L5 7.2l3.4-1.5L10 2z"/>
+              </svg>
+              <svg className="absolute -bottom-1 -left-1 w-3 h-3 text-pink-300" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                <path d="M10 2l1.2 2.8L14 6l-2.8 1.2L10 10 8.8 7.2 6 6l2.8-1.2L10 2z"/>
+              </svg>
+            </div>
+            <h2 className="text-base font-semibold text-brand-gray-900">로그아웃 완료 <span aria-hidden="true">✨</span></h2>
+          </div>
+          <div className="px-6 py-5 text-sm text-brand-gray-800">
+            <p>{logoutMsg || '로그아웃이 완료되었습니다.'}</p>
+          </div>
+          <div className="px-6 py-4 border-t flex justify-end">
+            <button
+              onClick={() => { setLogoutSuccessOpen(false); navigate('/'); }}
+              className="px-4 py-2 rounded-md text-sm bg-brand-green text-white hover:bg-brand-darkGreen"
+            >
+              확인
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
+    </>
   );
 };
 
