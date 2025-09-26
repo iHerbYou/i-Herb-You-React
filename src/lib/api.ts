@@ -2,7 +2,15 @@ export type HttpMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
 
 const getBaseUrl = () => {
   // In dev, vite dev server proxy will handle /api → backend
-  // In prod, use env (set VITE_API_BASE_URL) or fallback to same origin
+  // In prod, use env (set VITE_API_BASE_URL) or runtime override via localStorage
+  try {
+    if (typeof window !== 'undefined') {
+      const override = window.localStorage.getItem('API_BASE_URL');
+      if (override && typeof override === 'string') {
+        return override.replace(/\/$/, '');
+      }
+    }
+  } catch {}
   const env = import.meta.env.VITE_API_BASE_URL as string | undefined;
   return env?.replace(/\/$/, '') || '';
 };
