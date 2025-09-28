@@ -18,6 +18,43 @@ const PRICE_RANGES: PriceRange[] = [
 
 type SortKey = 'sales' | 'rating' | 'reviews' | 'priceDesc' | 'priceAsc';
 
+// Backend-like list item and page response shapes
+interface ProductListItemDto {
+  id: number;
+  name: string;
+  brandName: string;
+  thumbnailUrl: string;
+  minPrice: number;
+  avgRating: number;
+  reviewCount: number;
+  sales: number;
+  soldOut: boolean;
+}
+
+interface SortStateDto { empty: boolean; sorted: boolean; unsorted: boolean }
+interface PageableDto {
+  offset: number;
+  sort: SortStateDto;
+  paged: boolean;
+  pageNumber: number; // zero-based
+  pageSize: number;
+  unpaged: boolean;
+}
+
+interface PageResponseDto<T> {
+  totalPages: number;
+  totalElements: number;
+  first: boolean;
+  last: boolean;
+  size: number;
+  content: T[];
+  number: number; // zero-based page index
+  sort: SortStateDto;
+  pageable: PageableDto;
+  numberOfElements: number;
+  empty: boolean;
+}
+
 const CategoryList: React.FC = () => {
   const params = useParams();
   const navigate = useNavigate();
@@ -75,7 +112,47 @@ const CategoryList: React.FC = () => {
 
   const total = filtered.length;
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
-  const pageItems = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  const offset = (page - 1) * PAGE_SIZE;
+  const slice = filtered.slice(offset, offset + PAGE_SIZE);
+
+  const listPage: PageResponseDto<ProductListItemDto> = useMemo(() => {
+    const items: ProductListItemDto[] = slice.map((p) => ({
+      id: p.id,
+      name: p.name,
+      brandName: (p.name.split(' ')[0] || 'iHerbYou'),
+      thumbnailUrl: p.image,
+      minPrice: p.price,
+      avgRating: p.rating ?? 0,
+      reviewCount: p.reviewCount ?? 0,
+      sales: p.reviewCount ?? 0, // proxy with review count for mock
+      soldOut: false,
+    }));
+    const number = page - 1;
+    const numberOfElements = items.length;
+    const empty = numberOfElements === 0;
+    const sortState: SortStateDto = { empty: false, sorted: true, unsorted: false };
+    const pageable: PageableDto = {
+      offset,
+      sort: sortState,
+      paged: true,
+      pageNumber: page, // 1-based page number for default 1
+      pageSize: PAGE_SIZE,
+      unpaged: false,
+    };
+    return {
+      totalPages,
+      totalElements: total,
+      first: page === 1,
+      last: page === totalPages,
+      size: PAGE_SIZE,
+      content: items,
+      number,
+      sort: sortState,
+      pageable,
+      numberOfElements,
+      empty,
+    };
+  }, [slice, page, totalPages, total, offset]);
 
   const goPage = (n: number) => { setPage(Math.min(Math.max(1, n), totalPages)); window.scrollTo(0, 0); };
 
@@ -217,10 +294,21 @@ const CategoryList: React.FC = () => {
 
         {/* Products Grid */}
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-6">
-          {pageItems.map(p => (
-            <ProductCard key={p.id} product={p} onAddToCart={handleAddToCart} />
-          ))}
-          {pageItems.length === 0 && (
+          {listPage.content.map(item => {
+            const cardProduct: Product = {
+              id: item.id,
+              name: item.name,
+              price: item.minPrice,
+              category: topNode?.name ?? '기타',
+              image: item.thumbnailUrl,
+              rating: item.avgRating,
+              reviewCount: item.reviewCount,
+            } as Product;
+            return (
+              <ProductCard key={item.id} product={cardProduct} onAddToCart={handleAddToCart} />
+            );
+          })}
+          {listPage.content.length === 0 && (
             <div className="col-span-full text-center text-brand-gray-600 py-10">조건에 맞는 상품이 없습니다.</div>
           )}
         </div>

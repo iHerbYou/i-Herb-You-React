@@ -1,8 +1,9 @@
 import React, { useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { products as allProducts, type Product } from '../data/products';
+import { products as allProducts, type Product as LegacyProduct } from '../data/products';
 import { useCart } from '../contexts/CartContext';
 import { useToast } from '../contexts/ToastContext';
+import { getCategoryTreeSync } from '../lib/catalog';
 
 const MAX_QTY = 7;
 
@@ -41,32 +42,94 @@ function maskNickname(input: string): string {
   return local.slice(0, 4) + '*'.repeat(local.length - 4);
 }
 
+type BackendImage = { url: string; primary: boolean };
+type BackendVariant = {
+  id: number;
+  variantName: string;
+  listPrice: number;
+  salePrice: number;
+  stock: number;
+  soldOut: boolean;
+  upcCode: string;
+  restockEta?: string;
+  restockSubscriptionEnabled?: boolean;
+};
+
+type BackendProduct = {
+  id: number;
+  name: string;
+  brandId: number;
+  brandName: string;
+  categories: string[];
+  avgRating: number;
+  reviewCount: number;
+  code: string;
+  expirationDate?: number;
+  saleStartDate?: string;
+  images: BackendImage[];
+  variants: BackendVariant[];
+  description?: string;
+  instruction?: string;
+  ingredients?: string;
+  cautions?: string;
+  disclaimer?: string;
+  nutritionFacts?: string;
+  pillSize?: string;
+};
+
 const ProductDetail: React.FC = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { addToCart } = useCart();
   const { showToast } = useToast();
 
-  const product: Product | undefined = useMemo(() => allProducts.find(p => String(p.id) === id), [id]);
+  const legacy: LegacyProduct | undefined = useMemo(() => allProducts.find(p => String(p.id) === id), [id]);
 
-  const brandName = useMemo(() => {
-    if (!product) return '';
-    const first = product.name.split(' ')[0];
-    return first.length >= 2 ? first : 'iHerbYou';
-  }, [product]);
+  const detail: BackendProduct | undefined = useMemo(() => {
+    if (!legacy) return undefined;
+    const img: BackendImage = { url: legacy.image, primary: true };
+    const variant: BackendVariant = {
+      id: legacy.id,
+      variantName: '기본 옵션',
+      listPrice: legacy.price,
+      salePrice: legacy.price,
+      stock: (legacy.reviewCount ?? 0) % 12 + 1,
+      soldOut: false,
+      upcCode: `880${legacy.id.toString().padStart(6, '0')}`,
+    };
+    return {
+      id: legacy.id,
+      name: legacy.name,
+      brandId: 0,
+      brandName: legacy.name.split(' ')[0] || 'iHerbYou',
+      categories: [legacy.category],
+      avgRating: legacy.rating ?? 0,
+      reviewCount: legacy.reviewCount ?? 0,
+      code: `PD-${legacy.id.toString().padStart(5, '0')}`,
+      expirationDate: Date.now() + 1000 * 60 * 60 * 24 * 450,
+      saleStartDate: '2025-01-01',
+      images: [img],
+      variants: [variant],
+      description: '엄선된 성분으로 구성된 건강 보조 제품입니다. 균형 잡힌 영양 공급에 도움을 줄 수 있습니다.',
+      instruction: '하루 1~2회, 1회 1정 식후 섭취를 권장합니다.',
+      ingredients: '비타민C, 비오틴, 히알루론산 등',
+      cautions: '특이 체질, 알레르기 체질인 경우 성분을 확인하세요.',
+      disclaimer: '본 정보는 의약품이 아닌 건강기능식품 관련 안내입니다.',
+      nutritionFacts: '1회(1정)당 비타민C 1000mg 외',
+      pillSize: '10x5x5mm',
+    };
+  }, [legacy]);
+
+  const brandName = detail?.brandName ?? '';
 
   const images = useMemo(() => {
-    if (!product) return [] as string[];
-    return [product.image, product.image, product.image].slice(0, 3);
-  }, [product]);
+    if (!detail) return [] as string[];
+    const sorted = [...detail.images].sort((a, b) => Number(b.primary) - Number(a.primary));
+    return sorted.map(i => i.url);
+  }, [detail]);
 
-  // Stock (mock)
-  const stock = useMemo(() => {
-    if (!product) return 0;
-    const rc = product.reviewCount ?? 0;
-    const s = (rc % 12) + 1;
-    return s;
-  }, [product]);
+  const selectedVariant: BackendVariant | undefined = detail?.variants?.[0];
+  const stock = selectedVariant?.stock ?? 0;
 
   const [activeImg, setActiveImg] = useState(0);
   const [qty, setQty] = useState(1);
@@ -119,24 +182,38 @@ const ProductDetail: React.FC = () => {
   const [cartModalOpen, setCartModalOpen] = useState(false);
   const closeCartModal = () => setCartModalOpen(false);
 
-  const totalPrice = useMemo(() => (product ? product.price * qty : 0), [product, qty]);
+  const displayPrice = useMemo(() => {
+    if (!selectedVariant) return 0;
+    return selectedVariant.salePrice > 0 ? selectedVariant.salePrice : selectedVariant.listPrice;
+  }, [selectedVariant]);
+
+  const totalPrice = useMemo(() => displayPrice * qty, [displayPrice, qty]);
   const freeShipping = totalPrice >= 50000;
 
   const addToCartAndShow = () => {
-    if (!product) return;
-    addToCart(product, qty);
+    if (!detail || !selectedVariant) return;
+    const cartItem: LegacyProduct = {
+      id: detail.id,
+      name: detail.name,
+      price: displayPrice,
+      category: detail.categories[0] || '기타',
+      image: images[0] || '',
+      rating: detail.avgRating,
+      reviewCount: detail.reviewCount,
+    } as LegacyProduct;
+    addToCart(cartItem, qty);
     setCartModalOpen(true);
   };
 
   const frequentlyBought = useMemo(() => {
-    if (!product) return [] as Product[];
+    if (!detail) return [] as LegacyProduct[];
     return allProducts
-      .filter(p => p.id !== product.id && p.category === product.category)
+      .filter(p => p.id !== detail.id && p.category === (detail.categories[0] || ''))
       .sort((a, b) => (b.reviewCount ?? 0) - (a.reviewCount ?? 0))
       .slice(0, 4);
-  }, [product]);
+  }, [detail]);
 
-  if (!product) {
+  if (!detail) {
     return (
       <div className="min-h-[calc(100vh-124px)] flex items-center justify-center">
         <p className="text-brand-gray-700">존재하지 않는 상품입니다.</p>
@@ -144,7 +221,7 @@ const ProductDetail: React.FC = () => {
     );
   }
 
-  const rating = product.rating ?? 0;
+  const rating = detail.avgRating ?? 0;
 
   const prevImage = () => setActiveImg((i) => (i - 1 + images.length) % images.length);
   const nextImage = () => setActiveImg((i) => (i + 1) % images.length);
@@ -180,10 +257,14 @@ const ProductDetail: React.FC = () => {
         <nav className="text-sm text-brand-gray-600 mb-3">
           <Link to="/" className="hover:text-brand-pink">홈</Link>
           <span className="mx-2 text-brand-gray-400">&gt;</span>
-          {/* Map product top category name to its ID in categoryTree for ID-based URL */}
-          <Link to={`/c/${encodeURIComponent(product.category)}`} className="hover:text-brand-pink">{product.category}</Link>
+          {(() => {
+            const topName = detail.categories[0];
+            const top = getCategoryTreeSync().find(t => t.name === topName);
+            const href = top ? `/c/${top.id}` : '#';
+            return <Link to={href} className="hover:text-brand-pink">{topName}</Link>;
+          })()}
           <span className="mx-2 text-brand-gray-400">&gt;</span>
-          <span className="text-brand-gray-900">{product.name}</span>
+          <span className="text-brand-gray-900">{detail.name}</span>
         </nav>
 
         {/* Top section: gallery + summary */}
@@ -191,7 +272,7 @@ const ProductDetail: React.FC = () => {
           {/* Gallery */}
           <div>
             <div className="relative w-full pt-[100%] bg-gray-100 rounded-xl overflow-hidden">
-              <img src={images[activeImg]} alt={product.name} className="absolute inset-0 w-full h-full object-cover" />
+              <img src={images[activeImg]} alt={detail.name} className="absolute inset-0 w-full h-full object-cover" />
 
               {/* Prev / Next Arrows */}
               {images.length > 1 && (
@@ -212,7 +293,7 @@ const ProductDetail: React.FC = () => {
             <div className="mt-3 flex gap-2">
               {images.map((src, i) => (
                 <button key={i} onClick={() => setActiveImg(i)} className={`w-16 h-16 rounded-lg overflow-hidden border ${activeImg === i ? 'border-brand-pink' : 'border-gray-200'}`}>
-                  <img src={src} alt={`${product.name}-${i}`} className="w-full h-full object-cover" />
+                  <img src={src} alt={`${detail.name}-${i}`} className="w-full h-full object-cover" />
                 </button>
               ))}
             </div>
@@ -220,7 +301,7 @@ const ProductDetail: React.FC = () => {
 
           {/* Summary */}
           <div>
-            <h1 className="text-2xl font-bold text-brand-gray-900 mb-2">{product.name}</h1>
+            <h1 className="text-2xl font-bold text-brand-gray-900 mb-2">{detail.name}</h1>
             <div className="flex items-center gap-2 text-sm text-brand-gray-700 mb-2">
               <span>브랜드:</span>
               <Link to={`/brands/${encodeURIComponent(brandName.toLowerCase())}`} className="text-brand-pink hover:text-brand-pink/80">{brandName}</Link>
@@ -237,10 +318,15 @@ const ProductDetail: React.FC = () => {
                   </svg>
                 ))}
               </div>
-              <span className="text-sm text-brand-gray-600">({product.reviewCount ?? 0} 리뷰)</span>
+              <span className="text-sm text-brand-gray-600">({detail.reviewCount ?? 0} 리뷰)</span>
             </div>
 
-            <div className="text-2xl font-bold text-brand-gray-900 mb-3">{priceFormatted(product.price)}</div>
+            <div className="text-2xl font-bold text-brand-gray-900 mb-3">
+              {selectedVariant && selectedVariant.salePrice > 0 && selectedVariant.salePrice < selectedVariant.listPrice && (
+                <span className="mr-2 text-base line-through text-brand-gray-500">{priceFormatted(selectedVariant.listPrice)}</span>
+              )}
+              {priceFormatted(displayPrice)}
+            </div>
 
             <div className="flex items-center gap-4 mb-4">
               <div className="flex items-center gap-2">
@@ -272,11 +358,17 @@ const ProductDetail: React.FC = () => {
               </button>
             </div>
 
-            <div className="text-sm text-brand-gray-700 space-y-1">
-              <div>소비기한: 2026-12-31</div>
-              <div>상품코드: PD-{product.id.toString().padStart(5, '0')}</div>
-              <div>UPC코드: 880{product.id.toString().padStart(6, '0')}</div>
-            </div>
+              <div className="text-sm text-brand-gray-700 space-y-1">
+                <div>
+                  소비기한: {(() => {
+                    const ts = detail.expirationDate ?? 0;
+                    const ms = ts > 0 && ts < 1e11 ? ts * 1000 : ts;
+                    return ts ? new Date(ms).toISOString().slice(0,10) : '-';
+                  })()}
+                </div>
+                <div>상품코드: {detail.code}</div>
+                <div>UPC코드: {selectedVariant?.upcCode ?? '-'}</div>
+              </div>
           </div>
         </div>
 
@@ -325,7 +417,7 @@ const ProductDetail: React.FC = () => {
             <div className="flex items-center justify-between mb-3">
               <h2 className="text-lg font-semibold text-brand-gray-900">질문 & 답변</h2>
               <div className="flex items-center gap-2">
-                <Link to={`/p/${product.id}/qna`} className="text-sm text-brand-gray-700 hover:text-brand-pink">질문&답변 전체보기</Link>
+                <Link to={`/p/${detail.id}/qna`} className="text-sm text-brand-gray-700 hover:text-brand-pink">질문&답변 전체보기</Link>
                 <button onClick={()=>setAskOpen(true)} className="px-4 py-2 rounded-md text-sm bg-brand-green text-white hover:bg-brand-darkGreen">질문하기</button>
               </div>
             </div>
@@ -374,7 +466,7 @@ const ProductDetail: React.FC = () => {
               <button onClick={()=>{ if(!loggedIn){ navigate('/login'); } else { setWriteOpen(true);} }} className="px-4 py-2 rounded-md text-sm bg-brand-green text-white hover:bg-brand-darkGreen">구매후기 작성하기</button>
             </div>
             <div className="mb-4 flex items-center gap-4">
-              <div className="text-2xl font-bold text-brand-gray-900">{(product.rating ?? 0).toFixed(1)}</div>
+              <div className="text-2xl font-bold text-brand-gray-900">{(detail.avgRating ?? 0).toFixed(1)}</div>
               <div className="flex text-yellow-400">
                 {Array.from({ length: 5 }).map((_, i) => (
                   <svg key={i} className="w-5 h-5" viewBox="0 0 20 20" fill={i + 1 <= Math.round(rating) ? 'currentColor' : 'none'} stroke="currentColor">
@@ -382,7 +474,7 @@ const ProductDetail: React.FC = () => {
                   </svg>
                 ))}
               </div>
-              <span className="text-sm text-brand-gray-600">({product.reviewCount ?? 0}개 리뷰)</span>
+              <span className="text-sm text-brand-gray-600">({detail.reviewCount ?? 0}개 리뷰)</span>
             </div>
             <div className="space-y-3">
               {reviews.map(r => (
@@ -431,11 +523,11 @@ const ProductDetail: React.FC = () => {
             <div className="p-5">
               <div className="flex items-center mb-4">
                 <div className="w-16 h-16 bg-gray-100 rounded-md overflow-hidden mr-3">
-                  <img src={product.image} alt={product.name} className="w-full h-full object-cover" />
+                  <img src={images[0]} alt={detail.name} className="w-full h-full object-cover" />
                 </div>
                 <div className="min-w-0">
-                  <p className="text-sm text-brand-gray-900 font-medium truncate">{product.name}</p>
-                  <p className="text-sm text-brand-gray-700">{priceFormatted(product.price)} × {qty}</p>
+                  <p className="text-sm text-brand-gray-900 font-medium truncate">{detail.name}</p>
+                  <p className="text-sm text-brand-gray-700">{priceFormatted(displayPrice)} × {qty}</p>
                 </div>
               </div>
 
