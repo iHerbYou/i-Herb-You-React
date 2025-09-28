@@ -1,17 +1,37 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { get } from '../lib/api';
 
-const bannerImages: string[] = [
-  'https://file.cafe24cos.com/banner-admin-live/upload/sojjung3/2fe7eb01-25ff-4f47-efed-140d2e63a52d.jpeg',
-  'https://file.cafe24cos.com/banner-admin-live/upload/sojjung3/8043aa11-4393-41a4-d987-57371ee9eeda.jpeg',
-  'https://file.cafe24cos.com/banner-admin-live/upload/sojjung3/84cc8078-8d11-4b41-b882-ca867ae495c7.jpeg',
+// Fallback mock banners (keep like categories)
+const fallbackBanners: { imageUrl: string; sortOrder: number }[] = [
+  { imageUrl: 'https://file.cafe24cos.com/banner-admin-live/upload/sojjung3/2fe7eb01-25ff-4f47-efed-140d2e63a52d.jpeg', sortOrder: 1 },
+  { imageUrl: 'https://file.cafe24cos.com/banner-admin-live/upload/sojjung3/8043aa11-4393-41a4-d987-57371ee9eeda.jpeg', sortOrder: 2 },
+  { imageUrl: 'https://file.cafe24cos.com/banner-admin-live/upload/sojjung3/84cc8078-8d11-4b41-b882-ca867ae495c7.jpeg', sortOrder: 3 },
 ];
 
 const AUTO_INTERVAL_MS = 4000;
 
 const BannerCarousel: React.FC = () => {
   const [index, setIndex] = useState<number>(0);
+  const [images, setImages] = useState<string[]>(() => fallbackBanners.sort((a,b)=> (a.sortOrder||0)-(b.sortOrder||0)).map(b => b.imageUrl));
   const timerRef = useRef<number | null>(null);
-  const slides = useMemo(() => bannerImages, []);
+  const slides = useMemo(() => images, [images]);
+
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        const res = await get<Array<{ id: number; bannerName: string; imageUrl: string; sortOrder: number }>>('/api/banner', { auth: false });
+        if (!mounted) return;
+        if (Array.isArray(res) && res.length) {
+          const sorted = [...res].sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
+          setImages(sorted.map(b => b.imageUrl));
+        }
+      } catch {
+        // ignore, fallback already set
+      }
+    })();
+    return () => { mounted = false; };
+  }, []);
 
   const goTo = (i: number) => {
     setIndex((i + slides.length) % slides.length);
