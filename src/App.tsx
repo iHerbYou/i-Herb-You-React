@@ -26,9 +26,9 @@ function App() {
             <main>
               <Routes>
                 <Route path="/" element={<Home />} />
-                <Route path="/c/:top" element={<CategoryList />} />
-                <Route path="/c/:top/:mid" element={<CategoryList />} />
-                <Route path="/c/:top/:mid/:sub" element={<CategoryList />} />
+                <Route path="/c/:topId" element={<CategoryList />} />
+                <Route path="/c/:topId/:midId" element={<CategoryList />} />
+                <Route path="/c/:topId/:midId/:subId" element={<CategoryList />} />
                 <Route path="/p/:id" element={<ProductDetail />} />
                 <Route path="/p/:id/qna" element={<ProductQnA />} />
                 <Route path="/login" element={<Login />} />

@@ -180,6 +180,7 @@ const ProductDetail: React.FC = () => {
         <nav className="text-sm text-brand-gray-600 mb-3">
           <Link to="/" className="hover:text-brand-pink">홈</Link>
           <span className="mx-2 text-brand-gray-400">&gt;</span>
+          {/* Map product top category name to its ID in categoryTree for ID-based URL */}
           <Link to={`/c/${encodeURIComponent(product.category)}`} className="hover:text-brand-pink">{product.category}</Link>
           <span className="mx-2 text-brand-gray-400">&gt;</span>
           <span className="text-brand-gray-900">{product.name}</span>

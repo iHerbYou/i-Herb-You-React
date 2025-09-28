@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { categories as categoryTree } from '../data/categories';
-import type { TopCategory, MidCategory } from '../data/categories';
+import { getCategoryTreeSync, getCategoryTree } from '../lib/catalog';
+import type { TopCategory, MidCategory, SmallCategory } from '../data/categories';
 import { products as allProducts, type Product } from '../data/products';
 import ProductCard from '../components/ProductCard';
 
@@ -21,12 +21,18 @@ type SortKey = 'sales' | 'rating' | 'reviews' | 'priceDesc' | 'priceAsc';
 const CategoryList: React.FC = () => {
   const params = useParams();
   const navigate = useNavigate();
-  const topName = params.top ? decodeURIComponent(params.top) : undefined;
-  const midName = params.mid ? decodeURIComponent(params.mid) : undefined;
-  const subName = params.sub ? decodeURIComponent(params.sub) : undefined;
+  const topId = params.topId ? Number(params.topId) : undefined;
+  const midId = params.midId ? Number(params.midId) : undefined;
+  const subId = params.subId ? Number(params.subId) : undefined;
 
-  const topNode = useMemo<TopCategory | undefined>(() => categoryTree.find(t => t.name === topName), [topName]);
-  const midNode = useMemo<MidCategory | undefined>(() => topNode?.children.find(m => m.name === midName), [topNode, midName]);
+  const [catalog, setCatalog] = useState<TopCategory[]>(() => getCategoryTreeSync());
+  const topNode = useMemo<TopCategory | undefined>(() => catalog.find(t => t.id === topId), [catalog, topId]);
+  const midNode = useMemo<MidCategory | undefined>(() => topNode?.children.find(m => m.id === midId), [topNode, midId]);
+  const subNode = useMemo<SmallCategory | undefined>(() => midNode?.items?.find(s => s.id === subId), [midNode, subId]);
+
+  React.useEffect(() => {
+    getCategoryTree().then(setCatalog).catch(() => {});
+  }, []);
 
   const [sortKey, setSortKey] = useState<SortKey>('sales');
   const [excludeSoldOut, setExcludeSoldOut] = useState<boolean>(true);
@@ -34,7 +40,9 @@ const CategoryList: React.FC = () => {
   const [page, setPage] = useState<number>(1);
 
   const filtered = useMemo(() => {
-    let list: Product[] = topName ? allProducts.filter(p => p.category === topName) : allProducts;
+    // NOTE: current mock products store top-level category by name.
+    // Map by topNode.name for now; when products carry categoryId, switch to ID match.
+    let list: Product[] = topNode?.name ? allProducts.filter(p => p.category === topNode.name) : allProducts;
 
     if (priceSelection) {
       const range = PRICE_RANGES.find(r => r.label === priceSelection);
@@ -63,7 +71,7 @@ const CategoryList: React.FC = () => {
     });
 
     return list;
-  }, [topName, excludeSoldOut, priceSelection, sortKey]);
+  }, [topNode, excludeSoldOut, priceSelection, sortKey]);
 
   const total = filtered.length;
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
@@ -94,14 +102,18 @@ const CategoryList: React.FC = () => {
   }, [topNode, midNode]);
 
   const handleClickSub = (name: string) => {
-    if (midNode && midNode.items?.some(s => s.name === name)) {
-      navigate(`/c/${encodeURIComponent(topNode!.name)}/${encodeURIComponent(midNode.name)}/${encodeURIComponent(name)}`);
-    } else if (topNode && topNode.children.some(m => m.name === name)) {
-      navigate(`/c/${encodeURIComponent(topNode.name)}/${encodeURIComponent(name)}`);
+    if (midNode && midNode.items) {
+      const found = midNode.items.find(s => s.name === name);
+      if (found) navigate(`/c/${topNode!.id}/${midNode.id}/${found.id}`);
+      return;
+    }
+    if (topNode) {
+      const foundMid = topNode.children.find(m => m.name === name);
+      if (foundMid) navigate(`/c/${topNode.id}/${foundMid.id}`);
     }
   };
 
-  const pageTitle = subName ?? midName ?? topName ?? '전체 상품';
+  const pageTitle = subNode?.name ?? midNode?.name ?? topNode?.name ?? '전체 상품';
 
   return (
     <div className="min-h-[calc(100vh-124px)] bg-white">
@@ -112,19 +124,19 @@ const CategoryList: React.FC = () => {
           {topNode && (
             <>
               <span className="mx-2 text-brand-gray-400">&gt;</span>
-              <Link to={`/c/${encodeURIComponent(topNode.name)}`} className="hover:text-brand-pink">{topNode.name}</Link>
+              <Link to={`/c/${topNode.id}`} className="hover:text-brand-pink">{topNode.name}</Link>
             </>
           )}
           {midNode && (
             <>
               <span className="mx-2 text-brand-gray-400">&gt;</span>
-              <Link to={`/c/${encodeURIComponent(topNode!.name)}/${encodeURIComponent(midNode.name)}`} className="hover:text-brand-pink">{midNode.name}</Link>
+              <Link to={`/c/${topNode!.id}/${midNode.id}`} className="hover:text-brand-pink">{midNode.name}</Link>
             </>
           )}
-          {subName && (
+          {subNode && (
             <>
               <span className="mx-2 text-brand-gray-400">&gt;</span>
-              <span className="text-brand-gray-900 font-semibold">{subName}</span>
+              <span className="text-brand-gray-900 font-semibold">{subNode.name}</span>
             </>
           )}
         </nav>
@@ -138,7 +150,7 @@ const CategoryList: React.FC = () => {
         {subcategoryButtons.length > 0 && (
           <div className="mb-4 flex flex-wrap gap-2">
             {subcategoryButtons.map(name => {
-              const isSelected = subName === name;
+              const isSelected = (subNode?.name === name);
               return (
                 <button
                   key={name}

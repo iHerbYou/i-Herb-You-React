@@ -1,12 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { categories } from '../data/categories';
+import { getCategoryTreeSync, getCategoryTree } from '../lib/catalog';
 import type { TopCategory, MidCategory } from '../data/categories';
 import { logout as authLogout } from '../lib/auth';
 
 const Header: React.FC = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [showTopBanner, setShowTopBanner] = useState(true);
+  const [catalog, setCatalog] = useState<TopCategory[]>(() => getCategoryTreeSync());
   const [isAuthed, setIsAuthed] = useState<boolean>(() => {
     try {
       return !!(typeof window !== 'undefined' && window.sessionStorage.getItem('auth'));
@@ -19,6 +20,9 @@ const Header: React.FC = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
+    // warm and update catalog
+    getCategoryTree().then(setCatalog).catch(() => {});
+
     try {
       const raw = typeof window !== 'undefined' ? window.sessionStorage.getItem('hideTopBannerUntil') : null;
       const until = raw ? parseInt(raw, 10) : 0;
@@ -114,12 +118,12 @@ const Header: React.FC = () => {
 
           {/* Desktop Navigation with Categories (lg+) */}
           <nav className="hidden lg:flex space-x-6">
-            {categories.map((top: TopCategory) => (
+            {catalog.map((top: TopCategory) => (
               <div
                 key={top.name}
                 className="relative group"
               >
-                <button onClick={() => navigate(`/c/${encodeURIComponent(top.name)}`)} className="relative inline-flex items-center h-20 px-2 text-brand-gray-800 font-medium after:content-[''] after:block after:absolute after:bottom-0 after:left-0 after:h-[2px] after:bg-brand-pink after:w-full after:scale-x-0 group-hover:after:scale-x-100 after:origin-right group-hover:after:origin-left after:transition after:duration-500">
+                <button onClick={() => navigate(`/c/${top.id}`)} className="relative inline-flex items-center h-20 px-2 text-brand-gray-800 font-medium after:content-[''] after:block after:absolute after:bottom-0 after:left-0 after:h-[2px] after:bg-brand-pink after:w-full after:scale-x-0 group-hover:after:scale-x-100 after:origin-right group-hover:after:origin-left after:transition after:duration-500">
                   <span>{top.name}</span>
                   <svg className="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
@@ -131,12 +135,12 @@ const Header: React.FC = () => {
                   <div className="grid grid-cols-3 gap-4 p-4 max-h-[60vh] overflow-y-auto">
                     {top.children.map((mid: MidCategory) => (
                       <div key={mid.name}>
-                        <div onClick={()=>navigate(`/c/${encodeURIComponent(top.name)}/${encodeURIComponent(mid.name)}`)} className="text-sm font-semibold text-gray-900 hover:text-brand-pink cursor-pointer transition-colors mb-2">{mid.name}</div>
+                        <div onClick={()=>navigate(`/c/${top.id}/${mid.id}`)} className="text-sm font-semibold text-gray-900 hover:text-brand-pink cursor-pointer transition-colors mb-2">{mid.name}</div>
                         {mid.items && (
                           <ul className="space-y-1">
                             {mid.items.map((s) => (
                               <li key={s.name}>
-                                <button onClick={()=>navigate(`/c/${encodeURIComponent(top.name)}/${encodeURIComponent(mid.name)}/${encodeURIComponent(s.name)}`)} className="block text-left w-full text-sm text-gray-700 hover:text-brand-pink">{s.name}</button>
+                                <button onClick={()=>navigate(`/c/${top.id}/${mid.id}/${s.id}`)} className="block text-left w-full text-sm text-gray-700 hover:text-brand-pink">{s.name}</button>
                               </li>
                             ))}
                           </ul>
