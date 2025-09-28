@@ -1,6 +1,7 @@
 import React from 'react';
 import type { Product } from '../data/products';
 import { useToast } from '../contexts/ToastContext';
+import { addToWishlist, apiAddWishlist } from '../lib/wishlist';
 import { useCart } from '../contexts/CartContext';
 import { Link } from 'react-router-dom';
 
@@ -13,12 +14,43 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, onAddToCart }) => {
   const { showToast } = useToast();
   const { addToCart } = useCart();
 
-  const handleWishlist = () => {
-    showToast({
-      message: '위시리스트에 담겼습니다!',
-      actionLabel: '위시리스트 보러 가기',
-      onAction: () => { window.location.href = '/wishlist'; },
-    });
+  const handleWishlist = async () => {
+    // For now, send userId=1 always
+    try {
+      const res = await apiAddWishlist(1, product.id);
+      if (!res.duplicated) {
+        showToast({
+          message: '위시리스트에 담겼습니다!',
+          actionLabel: '위시리스트 보러 가기',
+          onAction: () => { window.location.href = '/wishlist'; },
+        });
+        return;
+      }
+      showToast({
+        message: '이미 위시리스트에 있어요.',
+        actionLabel: '위시리스트 보러 가기',
+        onAction: () => { window.location.href = '/wishlist'; },
+      });
+      return;
+    } catch {
+      // fall through to local storage
+    }
+    const res = addToWishlist(product);
+    if (res.added) {
+      showToast({
+        message: '위시리스트에 담겼습니다!',
+        actionLabel: '위시리스트 보러 가기',
+        onAction: () => { window.location.href = '/wishlist'; },
+      });
+    } else if (res.reason === 'exists') {
+      showToast({
+        message: '이미 위시리스트에 있어요.',
+        actionLabel: '위시리스트 보러 가기',
+        onAction: () => { window.location.href = '/wishlist'; },
+      });
+    } else if (res.reason === 'capacity') {
+      showToast({ message: '위시리스트는 최대 20개까지 저장할 수 있어요.' });
+    }
   };
 
   const handleAddToCart = () => {
