@@ -108,7 +108,7 @@ export async function api<T = unknown>(
     const refreshToken = getRefreshTokenFromCookie();
     if (refreshToken) {
       try {
-        const refreshRes = await fetch(`${base}/api/users/refresh-token`, {
+        const refreshRes = await fetch(`${base}/api/auth/refresh`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ refreshToken }),
@@ -128,10 +128,22 @@ export async function api<T = unknown>(
           // clear tokens on refresh failure
           clearAuthTokenCookie();
           clearRefreshTokenCookie();
+          try {
+            if (typeof window !== 'undefined') {
+              window.sessionStorage.removeItem('auth');
+              window.dispatchEvent(new Event('auth:change'));
+            }
+          } catch {}
         }
       } catch {
         clearAuthTokenCookie();
         clearRefreshTokenCookie();
+        try {
+          if (typeof window !== 'undefined') {
+            window.sessionStorage.removeItem('auth');
+            window.dispatchEvent(new Event('auth:change'));
+          }
+        } catch {}
       }
     }
   }

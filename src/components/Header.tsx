@@ -8,9 +8,17 @@ const Header: React.FC = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [showTopBanner, setShowTopBanner] = useState(true);
   const [catalog, setCatalog] = useState<TopCategory[]>(() => getCategoryTreeSync());
+  
+  const hasAuthCookie = () => {
+    try {
+      if (typeof document === 'undefined') return false;
+      return /(?:^|; )ihy_access_token=/.test(document.cookie);
+    } catch { return false; }
+  };
   const [isAuthed, setIsAuthed] = useState<boolean>(() => {
     try {
-      return !!(typeof window !== 'undefined' && window.sessionStorage.getItem('auth'));
+      const hasSession = typeof window !== 'undefined' && !!window.sessionStorage.getItem('auth');
+      return hasSession || hasAuthCookie();
     } catch {
       return false;
     }
@@ -38,9 +46,9 @@ const Header: React.FC = () => {
     const syncAuth = () => {
       try {
         const raw = window.sessionStorage.getItem('auth');
-        setIsAuthed(!!raw);
+        setIsAuthed(!!raw || hasAuthCookie());
       } catch {
-        setIsAuthed(false);
+        setIsAuthed(hasAuthCookie());
       }
     };
     const onAuthChange = () => syncAuth();
