@@ -1,12 +1,14 @@
 import { post } from './api';
-import { setAuthTokenCookie, clearAuthTokenCookie } from './api';
+import { setAuthTokenCookie, clearAuthTokenCookie, setRefreshTokenCookie, clearRefreshTokenCookie } from './api';
 
 export type LoginResponse = {
   email: string;
   name: string;
   accessToken: string;
+  refreshToken?: string;
   tokenType: string;
   expiresIn: number;
+  refreshTokenExpiresIn?: number;
   message?: string;
 };
 
@@ -43,6 +45,9 @@ export async function signup(payload: SignupPayload): Promise<SignupResponse> {
 export async function login(email: string, password: string): Promise<LoginResponse> {
   const res = await post<LoginResponse>('/api/users/login', { email, password }, { credentials: 'include', auth: false });
   setAuthTokenCookie(res.accessToken, res.expiresIn);
+  if (res.refreshToken) {
+    setRefreshTokenCookie(res.refreshToken, res.refreshTokenExpiresIn);
+  }
   try {
     if (typeof window !== 'undefined') {
       window.sessionStorage.setItem('auth', JSON.stringify({ nickname: res.name || email, role: 'user' }));
@@ -64,6 +69,7 @@ export async function logout(): Promise<void> {
     }
   } catch {}
   clearAuthTokenCookie();
+  clearRefreshTokenCookie();
   dispatchAuthChangeEvent();
 }
 
