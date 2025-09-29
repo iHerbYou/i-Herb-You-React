@@ -12,6 +12,7 @@ import CategoryList from './pages/CategoryList';
 import ProductDetail from './pages/ProductDetail';
 import ProductQnA from './pages/ProductQnA';
 import Wishlist from './pages/Wishlist';
+import Account from './pages/Account';
 import { ToastProvider } from './contexts/ToastContext';
 import { CartProvider } from './contexts/CartContext';
 import ScrollToTop from './components/ScrollToTop';
@@ -33,6 +34,7 @@ function App() {
                 <Route path="/p/:id" element={<ProductDetail />} />
                 <Route path="/p/:id/qna" element={<ProductQnA />} />
                 <Route path="/wishlist" element={<Wishlist />} />
+                <Route path="/account" element={<Account />} />
                 <Route path="/login" element={<Login />} />
                 <Route path="/signup" element={<Signup />} />
                 <Route path="/find-email" element={<FindEmail />} />
