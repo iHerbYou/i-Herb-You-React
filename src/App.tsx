@@ -16,6 +16,7 @@ import Account from './pages/Account';
 import { ToastProvider } from './contexts/ToastContext';
 import { CartProvider } from './contexts/CartContext';
 import ScrollToTop from './components/ScrollToTop';
+import { GuestOnly, RequireAuth } from './components/RouteGuards';
 
 function App() {
   return (
@@ -35,11 +36,16 @@ function App() {
                 <Route path="/p/:id/qna" element={<ProductQnA />} />
                 <Route path="/wishlist" element={<Wishlist />} />
                 <Route path="/account" element={<Account />} />
-                <Route path="/login" element={<Login />} />
-                <Route path="/signup" element={<Signup />} />
+                <Route element={<GuestOnly />}>
+                  <Route path="/login" element={<Login />} />
+                  <Route path="/signup" element={<Signup />} />
+                </Route>
                 <Route path="/find-email" element={<FindEmail />} />
                 <Route path="/event/coupon" element={<EventCoupon />} />
                 <Route path="/reset-password" element={<ResetPassword />} />
+                <Route element={<RequireAuth />}>
+                  {/* <Route path="/reset-password" element={<ResetPassword />} /> */}
+                </Route>
                 <Route path="*" element={<NotFound />} />
               </Routes>
             </main>
