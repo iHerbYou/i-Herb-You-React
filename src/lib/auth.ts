@@ -32,6 +32,16 @@ function dispatchAuthChangeEvent() {
   } catch {}
 }
 
+export function isLoggedIn(): boolean {
+  try {
+    if (typeof window === 'undefined') return false;
+    const raw = window.sessionStorage.getItem('auth');
+    return !!raw;
+  } catch {
+    return false;
+  }
+}
+
 export async function signup(payload: SignupPayload): Promise<SignupResponse> {
   const res = await post<SignupResponse>('/api/users/signup', payload, { credentials: 'include', auth: false });
   try {
@@ -72,4 +82,3 @@ export async function logout(): Promise<void> {
   clearRefreshTokenCookie();
   dispatchAuthChangeEvent();
 }
-

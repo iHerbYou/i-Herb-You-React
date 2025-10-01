@@ -1,9 +1,10 @@
 import React from 'react';
 import type { Product } from '../data/products';
 import { useToast } from '../contexts/ToastContext';
-import { addToWishlist, apiAddWishlist } from '../lib/wishlist';
+import { apiAddWishlist } from '../lib/wishlist';
 import { useCart } from '../contexts/CartContext';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
+import { isLoggedIn } from '../lib/auth';
 
 interface ProductCardProps {
   product: Product;
@@ -13,43 +14,24 @@ interface ProductCardProps {
 const ProductCard: React.FC<ProductCardProps> = ({ product, onAddToCart }) => {
   const { showToast } = useToast();
   const { addToCart } = useCart();
+  const navigate = useNavigate();
 
   const handleWishlist = async () => {
-    // For now, send userId=1 always
-    try {
-      const res = await apiAddWishlist(1, product.id);
-      if (!res.duplicated) {
-        showToast({
-          message: '위시리스트에 담겼습니다!',
-          actionLabel: '위시리스트 보러 가기',
-          onAction: () => { window.location.href = '/wishlist'; },
-        });
-        return;
-      }
-      showToast({
-        message: '이미 위시리스트에 있어요.',
-        actionLabel: '위시리스트 보러 가기',
-        onAction: () => { window.location.href = '/wishlist'; },
-      });
+    if (!isLoggedIn()) {
+      navigate('/login');
       return;
-    } catch {
-      // fall through to local storage
     }
-    const res = addToWishlist(product);
-    if (res.added) {
+
+    try {
+      const res = await apiAddWishlist(product.id);
       showToast({
-        message: '위시리스트에 담겼습니다!',
+        message: res.message,  // 백엔드에서 받은 메시지 사용
         actionLabel: '위시리스트 보러 가기',
         onAction: () => { window.location.href = '/wishlist'; },
       });
-    } else if (res.reason === 'exists') {
-      showToast({
-        message: '이미 위시리스트에 있어요.',
-        actionLabel: '위시리스트 보러 가기',
-        onAction: () => { window.location.href = '/wishlist'; },
-      });
-    } else if (res.reason === 'capacity') {
-      showToast({ message: '위시리스트는 최대 20개까지 저장할 수 있어요.' });
+    } catch (err) {
+      console.error('Failed to add to wishlist:', err);
+      showToast({ message: '위시리스트 담기에 실패했습니다. 다시 시도해주세요.' });
     }
   };
 

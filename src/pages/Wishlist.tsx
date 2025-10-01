@@ -1,47 +1,49 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { getWishlist, removeFromWishlist, type WishlistItem, apiFetchWishlist, apiDeleteWishlistItems } from '../lib/wishlist';
+import { apiFetchWishlist, apiDeleteWishlistItems, type WishlistItemResponse } from '../lib/wishlist';
+import { useToast } from '../contexts/ToastContext';
 
 const Wishlist: React.FC = () => {
-  const [items, setItems] = React.useState<WishlistItem[]>(() => getWishlist());
+  const [items, setItems] = React.useState<WishlistItemResponse[]>([]);
   const [loading, setLoading] = React.useState(false);
-  const userId = React.useMemo(() => {
-    // TODO: replace with real authenticated user id when auth is integrated
-    return 1;
-  }, []);
+  const { showToast } = useToast();
 
   React.useEffect(() => {
-    // Try backend first; fallback to local on error
     (async () => {
       setLoading(true);
       try {
-        const serverItems = await apiFetchWishlist(userId);
-        if (serverItems && serverItems.length >= 0) {
-          setItems(serverItems.map(si => ({ id: si.productId, name: si.productName, image: si.thumbnailUrl, addedAt: new Date(si.createdAt).getTime() })));
-          setLoading(false);
-          return;
-        }
-      } catch {}
-      setItems(getWishlist());
+        const serverItems = await apiFetchWishlist();
+        setItems(serverItems);
+      } catch (err) {
+        console.error('Failed to load wishlist:', err);
+      }
       setLoading(false);
     })();
-  }, [userId]);
+  }, []);
+
   const [selected, setSelected] = React.useState<Set<number>>(new Set());
 
-  const handleRemove = (id: number) => {
-    removeFromWishlist(id);
-    setItems(getWishlist());
-    setSelected(prev => {
-      const next = new Set(prev);
-      next.delete(id);
-      return next;
-    });
+  const handleRemove = async (itemId: number) => {
+    try {
+      await apiDeleteWishlistItems([itemId]);
+      const serverItems = await apiFetchWishlist();
+      setItems(serverItems);
+      setSelected(prev => {
+        const next = new Set(prev);
+        next.delete(itemId);
+        return next;
+      });
+      showToast({ message: '위시리스트에서 삭제되었습니다.' });
+    } catch (err) {
+      console.error('Failed to delete wishlist item:', err);
+      showToast({ message: '삭제에 실패했습니다. 다시 시도해주세요.' });
+    }
   };
 
-  const toggleOne = (id: number) => {
+  const toggleOne = (itemId: number) => {
     setSelected(prev => {
       const next = new Set(prev);
-      if (next.has(id)) next.delete(id); else next.add(id);
+      if (next.has(itemId)) next.delete(itemId); else next.add(itemId);
       return next;
     });
   };
@@ -51,25 +53,23 @@ const Wishlist: React.FC = () => {
     if (allChecked) {
       setSelected(new Set());
     } else {
-      setSelected(new Set(items.map(i => i.id)));
+      setSelected(new Set(items.map(i => i.itemId)));
     }
   };
 
   const removeSelected = async () => {
     if (selected.size === 0) return;
     const ids = Array.from(selected);
-    // Attempt server deletion; fallback to local
     try {
-      // Assuming itemIds are productIds here; if backend requires wishlist item ids, map accordingly
-      await apiDeleteWishlistItems(userId, ids.map(Number));
-      // refresh from server
-      const serverItems = await apiFetchWishlist(userId);
-      setItems(serverItems.map(si => ({ id: si.productId, name: si.productName, image: si.thumbnailUrl, addedAt: new Date(si.createdAt).getTime() })));
-    } catch {
-      ids.forEach(id => removeFromWishlist(id));
-      setItems(getWishlist());
+      await apiDeleteWishlistItems(ids.map(Number));
+      const serverItems = await apiFetchWishlist();
+      setItems(serverItems);
+      setSelected(new Set());
+      showToast({ message: `선택한 ${ids.length}개의 상품이 위시리스트에서 삭제되었습니다.` });
+    } catch (err) {
+      console.error('Failed to delete wishlist items:', err);
+      showToast({ message: '삭제에 실패했습니다. 다시 시도해주세요.' });
     }
-    setSelected(new Set());
   };
 
   return (
@@ -101,24 +101,22 @@ const Wishlist: React.FC = () => {
           </div>
         ) : (
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-6">
-            {items
-              .sort((a, b) => a.addedAt - b.addedAt) // 담은 순서대로
-              .map(item => (
-              <div key={item.id} className={`bg-white rounded-lg shadow-sm border ${selected.has(item.id) ? 'border-brand-pink' : 'border-gray-200'} overflow-hidden`}>
-                <Link to={`/p/${item.id}`} className="block">
+            {items.map(item => (
+              <div key={item.itemId} className={`bg-white rounded-lg shadow-sm border ${selected.has(item.itemId) ? 'border-brand-pink' : 'border-gray-200'} overflow-hidden`}>
+                <Link to={`/p/${item.productId}`} className="block">
                   <div className="aspect-square bg-gray-100 relative overflow-hidden">
-                    <img src={item.image} alt={item.name} className="absolute inset-0 w-full h-full object-cover" />
+                    <img src={item.thumbnailUrl} alt={item.productName} className="absolute inset-0 w-full h-full object-cover" />
                   </div>
                 </Link>
                 <div className="p-4">
                   <div className="flex items-start justify-between gap-2 mb-1">
-                    <h3 className="text-sm font-medium text-brand-gray-900 line-clamp-2 flex-1">{item.name}</h3>
+                    <h3 className="text-sm font-medium text-brand-gray-900 line-clamp-2 flex-1">{item.productName}</h3>
                     <label className="shrink-0 inline-flex items-center gap-1 text-sm text-brand-gray-700">
-                      <input type="checkbox" className="h-4 w-4" checked={selected.has(item.id)} onChange={()=>toggleOne(item.id)} />
+                      <input type="checkbox" className="h-4 w-4" checked={selected.has(item.itemId)} onChange={()=>toggleOne(item.itemId)} />
                     </label>
                   </div>
                   <div className="flex items-center justify-end">
-                    <button onClick={()=>handleRemove(item.id)} aria-label="삭제" title="삭제" className="text-brand-gray-600 hover:text-red-500 border border-gray-300 hover:border-red-300 rounded-md p-1 bg-white">
+                    <button onClick={()=>handleRemove(item.itemId)} aria-label="삭제" title="삭제" className="text-brand-gray-600 hover:text-red-500 border border-gray-300 hover:border-red-300 rounded-md p-1 bg-white">
                       <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6M9 7h6m-7 0a1 1 0 01-1-1V5a1 1 0 011-1h8a1 1 0 011 1v1m-9 0h10" />
                       </svg>
@@ -140,4 +138,3 @@ const Wishlist: React.FC = () => {
 };
 
 export default Wishlist;
-

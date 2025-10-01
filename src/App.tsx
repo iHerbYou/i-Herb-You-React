@@ -12,6 +12,7 @@ import CategoryList from './pages/CategoryList';
 import ProductDetail from './pages/ProductDetail';
 import ProductQnA from './pages/ProductQnA';
 import Wishlist from './pages/Wishlist';
+import SharedWishlist from './pages/SharedWishlist';
 import Account from './pages/Account';
 import { ToastProvider } from './contexts/ToastContext';
 import { CartProvider } from './contexts/CartContext';
@@ -34,8 +35,7 @@ function App() {
                 <Route path="/c/:topId/:midId/:subId" element={<CategoryList />} />
                 <Route path="/p/:id" element={<ProductDetail />} />
                 <Route path="/p/:id/qna" element={<ProductQnA />} />
-                <Route path="/wishlist" element={<Wishlist />} />
-                <Route path="/account" element={<Account />} />
+                <Route path="/s/:shareId" element={<SharedWishlist />} />
                 <Route element={<GuestOnly />}>
                   <Route path="/login" element={<Login />} />
                   <Route path="/signup" element={<Signup />} />
@@ -44,7 +44,8 @@ function App() {
                 <Route path="/event/coupon" element={<EventCoupon />} />
                 <Route path="/reset-password" element={<ResetPassword />} />
                 <Route element={<RequireAuth />}>
-                  {/* <Route path="/reset-password" element={<ResetPassword />} /> */}
+                  <Route path="/wishlist" element={<Wishlist />} />
+                  <Route path="/account" element={<Account />} />
                 </Route>
                 <Route path="*" element={<NotFound />} />
               </Routes>
