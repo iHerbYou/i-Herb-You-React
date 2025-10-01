@@ -4,6 +4,7 @@ import { getCategoryTreeSync, getCategoryTree } from '../lib/catalog';
 import type { TopCategory, MidCategory, SmallCategory } from '../data/categories';
 import { products as allProducts, type Product } from '../data/products';
 import ProductCard from '../components/ProductCard';
+import { fetchProductList, type PageResponseDto, type ProductListDto } from '../lib/products';
 
 const PAGE_SIZE = 24; // 4 x 6
 
@@ -18,42 +19,7 @@ const PRICE_RANGES: PriceRange[] = [
 
 type SortKey = 'sales' | 'rating' | 'reviews' | 'priceDesc' | 'priceAsc';
 
-// Backend-like list item and page response shapes
-interface ProductListItemDto {
-  id: number;
-  name: string;
-  brandName: string;
-  thumbnailUrl: string;
-  minPrice: number;
-  avgRating: number;
-  reviewCount: number;
-  sales: number;
-  soldOut: boolean;
-}
-
-interface SortStateDto { empty: boolean; sorted: boolean; unsorted: boolean }
-interface PageableDto {
-  offset: number;
-  sort: SortStateDto;
-  paged: boolean;
-  pageNumber: number; // zero-based
-  pageSize: number;
-  unpaged: boolean;
-}
-
-interface PageResponseDto<T> {
-  totalPages: number;
-  totalElements: number;
-  first: boolean;
-  last: boolean;
-  size: number;
-  content: T[];
-  number: number; // zero-based page index
-  sort: SortStateDto;
-  pageable: PageableDto;
-  numberOfElements: number;
-  empty: boolean;
-}
+// Use DTOs from lib/products
 
 const CategoryList: React.FC = () => {
   const params = useParams();
@@ -76,47 +42,10 @@ const CategoryList: React.FC = () => {
   const [priceSelection, setPriceSelection] = useState<string>('');
   const [page, setPage] = useState<number>(1);
 
-  const filtered = useMemo(() => {
-    // NOTE: current mock products store top-level category by name.
-    // Map by topNode.name for now; when products carry categoryId, switch to ID match.
-    let list: Product[] = topNode?.name ? allProducts.filter(p => p.category === topNode.name) : allProducts;
-
-    if (priceSelection) {
-      const range = PRICE_RANGES.find(r => r.label === priceSelection);
-      if (range) {
-        list = list.filter(p => p.price >= range.min && p.price < range.max);
-      }
-    }
-
-    if (excludeSoldOut) {
-      // placeholder for future inventory flag
-    }
-
-    const bySales = (p: Product) => (p.reviewCount ?? 0);
-    const byRating = (p: Product) => (p.rating ?? 0);
-    const byReviews = (p: Product) => (p.reviewCount ?? 0);
-
-    list = [...list].sort((a, b) => {
-      switch (sortKey) {
-        case 'sales': return bySales(b) - bySales(a);
-        case 'rating': return byRating(b) - byRating(a);
-        case 'reviews': return byReviews(b) - byReviews(a);
-        case 'priceDesc': return b.price - a.price;
-        case 'priceAsc': return a.price - b.price;
-        default: return 0;
-      }
-    });
-
-    return list;
-  }, [topNode, excludeSoldOut, priceSelection, sortKey]);
-
-  const total = filtered.length;
-  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
-  const offset = (page - 1) * PAGE_SIZE;
-  const slice = filtered.slice(offset, offset + PAGE_SIZE);
-
-  const listPage: PageResponseDto<ProductListItemDto> = useMemo(() => {
-    const items: ProductListItemDto[] = slice.map((p) => ({
+  const [listPage, setListPage] = useState<PageResponseDto<ProductListDto>>(() => {
+    // initial fallback from local data for fast first paint
+    const base = topNode?.name ? allProducts.filter(p => p.category === topNode.name) : allProducts;
+    const items = base.slice(0, PAGE_SIZE).map((p) => ({
       id: p.id,
       name: p.name,
       brandName: (p.name.split(' ')[0] || 'iHerbYou'),
@@ -124,37 +53,90 @@ const CategoryList: React.FC = () => {
       minPrice: p.price,
       avgRating: p.rating ?? 0,
       reviewCount: p.reviewCount ?? 0,
-      sales: p.reviewCount ?? 0, // proxy with review count for mock
+      sales: p.reviewCount ?? 0,
       soldOut: false,
     }));
-    const number = page - 1;
-    const numberOfElements = items.length;
-    const empty = numberOfElements === 0;
-    const sortState: SortStateDto = { empty: false, sorted: true, unsorted: false };
-    const pageable: PageableDto = {
-      offset,
-      sort: sortState,
-      paged: true,
-      pageNumber: page, // 1-based page number for default 1
-      pageSize: PAGE_SIZE,
-      unpaged: false,
-    };
     return {
-      totalPages,
-      totalElements: total,
-      first: page === 1,
-      last: page === totalPages,
+      totalPages: 1,
+      totalElements: items.length,
+      first: true,
+      last: true,
       size: PAGE_SIZE,
       content: items,
-      number,
-      sort: sortState,
-      pageable,
-      numberOfElements,
-      empty,
-    };
-  }, [slice, page, totalPages, total, offset]);
+      number: 0,
+      sort: { empty: true, sorted: false, unsorted: true },
+      pageable: { offset: 0, sort: { empty: true, sorted: false, unsorted: true }, paged: true, pageNumber: 0, pageSize: PAGE_SIZE, unpaged: false },
+      numberOfElements: items.length,
+      empty: items.length === 0,
+    } as PageResponseDto<ProductListDto>;
+  });
+
+  const totalPages = Math.max(1, listPage.totalPages || 1);
 
   const goPage = (n: number) => { setPage(Math.min(Math.max(1, n), totalPages)); window.scrollTo(0, 0); };
+
+  React.useEffect(() => {
+    // compute API params
+    const range = priceSelection ? PRICE_RANGES.find(r => r.label === priceSelection) : undefined;
+    const minPrice = range?.min;
+    const maxPrice = range?.max && range.max !== Number.MAX_SAFE_INTEGER ? range.max : undefined;
+    const categoryId = subId ?? midId ?? topId;
+    const sort = sortKey === 'priceAsc' || sortKey === 'priceDesc' ? 'price' : (sortKey === 'sales' ? 'sales' : (sortKey === 'rating' ? 'rating' : 'reviews'));
+    const direction = sortKey === 'priceAsc' ? 'asc' : 'desc';
+
+    fetchProductList({ page, size: PAGE_SIZE, excludeSoldOut, minPrice, maxPrice, categoryId, sort: sort as any, direction })
+      .then(setListPage)
+      .catch(() => {
+        // fallback to local mock filtering
+        let list: Product[] = topNode?.name ? allProducts.filter(p => p.category === topNode.name) : allProducts;
+        if (range) list = list.filter(p => p.price >= range.min && (maxPrice ? p.price < maxPrice : true));
+        if (excludeSoldOut) {
+          // no-op in mock
+        }
+        const bySales = (p: Product) => (p.reviewCount ?? 0);
+        const byRating = (p: Product) => (p.rating ?? 0);
+        const byReviews = (p: Product) => (p.reviewCount ?? 0);
+        list = [...list].sort((a, b) => {
+          switch (sortKey) {
+            case 'sales': return bySales(b) - bySales(a);
+            case 'rating': return byRating(b) - byRating(a);
+            case 'reviews': return byReviews(b) - byReviews(a);
+            case 'priceDesc': return b.price - a.price;
+            case 'priceAsc': return a.price - b.price;
+            default: return 0;
+          }
+        });
+
+        const total = list.length;
+        const totalPagesLocal = Math.max(1, Math.ceil(total / PAGE_SIZE));
+        const offsetLocal = (page - 1) * PAGE_SIZE;
+        const slice = list.slice(offsetLocal, offsetLocal + PAGE_SIZE);
+        const items = slice.map((p) => ({
+          id: p.id,
+          name: p.name,
+          brandName: (p.name.split(' ')[0] || 'iHerbYou'),
+          thumbnailUrl: p.image,
+          minPrice: p.price,
+          avgRating: p.rating ?? 0,
+          reviewCount: p.reviewCount ?? 0,
+          sales: p.reviewCount ?? 0,
+          soldOut: false,
+        }));
+        setListPage({
+          totalPages: totalPagesLocal,
+          totalElements: total,
+          first: page === 1,
+          last: page === totalPagesLocal,
+          size: PAGE_SIZE,
+          content: items,
+          number: page - 1,
+          sort: { empty: false, sorted: true, unsorted: false },
+          pageable: { offset: offsetLocal, sort: { empty: false, sorted: true, unsorted: false }, paged: true, pageNumber: page - 1, pageSize: PAGE_SIZE, unpaged: false },
+          numberOfElements: items.length,
+          empty: items.length === 0,
+        });
+      });
+  }, [page, PAGE_SIZE, excludeSoldOut, priceSelection, subId, midId, topId, sortKey, topNode]);
 
   const [modalOpen, setModalOpen] = useState<boolean>(false);
   const [addedProduct, setAddedProduct] = useState<Product | null>(null);
@@ -164,13 +146,25 @@ const CategoryList: React.FC = () => {
     setModalOpen(true);
   };
 
+  const currentProducts: Product[] = useMemo(() => {
+    return (listPage.content || []).map((item) => ({
+      id: item.id,
+      name: item.name,
+      price: item.minPrice,
+      category: topNode?.name ?? '기타',
+      image: item.thumbnailUrl,
+      rating: item.avgRating,
+      reviewCount: item.reviewCount,
+    } as Product));
+  }, [listPage, topNode]);
+
   const frequentlyBought = useMemo(() => {
     if (!addedProduct) return [] as Product[];
-    return filtered
+    return currentProducts
       .filter(p => p.id !== addedProduct.id)
       .sort((a, b) => (b.reviewCount ?? 0) - (a.reviewCount ?? 0))
       .slice(0, 4);
-  }, [addedProduct, filtered]);
+  }, [addedProduct, currentProducts]);
 
   const subcategoryButtons = useMemo(() => {
     if (midNode && midNode.items) return midNode.items.map(s => s.name);

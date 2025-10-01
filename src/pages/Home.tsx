@@ -2,6 +2,8 @@ import React from 'react';
 import BannerCarousel from '../components/BannerCarousel';
 import ProductSection from '../components/ProductSection';
 import { products } from '../data/products';
+import { fetchBestsellers, fetchNewProducts, fetchTopRated, type ProductListDto } from '../lib/products';
+import { getCategoryTreeSync } from '../lib/catalog';
 
 const Home: React.FC = () => {
   const dietProducts = products.filter(product => 
@@ -15,6 +17,32 @@ const Home: React.FC = () => {
   const othersForBest = products.filter(p => p.category !== '뷰티').slice(0, 6);
   const bestSellerProducts = [...beautyForBest, ...othersForBest].slice(0, 8);
 
+  // state for API-backed sections with fallback to existing mock
+  const [bestApi, setBestApi] = React.useState<ProductListDto[] | null>(null);
+  const [newApi, setNewApi] = React.useState<ProductListDto[] | null>(null);
+  const [topApi, setTopApi] = React.useState<ProductListDto[] | null>(null);
+  const [bestTab, setBestTab] = React.useState<string>('전체');
+
+  React.useEffect(() => {
+    // initial loads
+    fetchBestsellers({ size: 8 }).then(setBestApi).catch(() => {});
+    fetchNewProducts({ size: 8 }).then(setNewApi).catch(() => {});
+    fetchTopRated({ size: 8 }).then(setTopApi).catch(() => {});
+  }, []);
+
+  // Map tab label → categoryId using the current catalog
+  const resolveCategoryId = (label: string): number | undefined => {
+    if (label === '전체') return undefined;
+    const top = getCategoryTreeSync().find(t => t.name === label);
+    return top?.id;
+  };
+
+  const handleBestTabChange = (label: string) => {
+    setBestTab(label);
+    const categoryId = resolveCategoryId(label);
+    fetchBestsellers({ size: 8, categoryId }).then(setBestApi).catch(() => {});
+  };
+
   return (
     <>
       <BannerCarousel />
@@ -22,20 +50,22 @@ const Home: React.FC = () => {
       <ProductSection
         title="베스트셀러"
         subtitle="아이허브유의 Top 인기상품을 만나보세요"
-        products={bestSellerProducts}
+        products={bestApi ? (bestApi.map(i => ({ id: i.id, name: i.name, price: i.minPrice, category: '기타', image: i.thumbnailUrl, rating: i.avgRating, reviewCount: i.reviewCount })) as any) : bestSellerProducts}
         categories={['영양제', '스포츠', '뷰티']}
+        activeCategory={bestTab}
+        onCategoryChange={handleBestTabChange}
       />
 
       <ProductSection
         title="최근 출시된 상품"
         subtitle="아이허브유의 신상품을 가장 먼저 만나보세요"
-        products={dietProducts}
+        products={newApi ? (newApi.map(i => ({ id: i.id, name: i.name, price: i.minPrice, category: '기타', image: i.thumbnailUrl, rating: i.avgRating, reviewCount: i.reviewCount })) as any) : dietProducts}
       />
 
       <ProductSection
         title="별점 높은 상품"
         subtitle="고객 만족도가 높은 인기 제품을 만나보세요"
-        products={dietProducts}
+        products={topApi ? (topApi.map(i => ({ id: i.id, name: i.name, price: i.minPrice, category: '기타', image: i.thumbnailUrl, rating: i.avgRating, reviewCount: i.reviewCount })) as any) : dietProducts}
       />
 
       <section className="py-16 bg-brand-pinkSoft">

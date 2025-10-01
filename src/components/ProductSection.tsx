@@ -7,15 +7,20 @@ interface ProductSectionProps {
   subtitle?: string;
   products: Product[];
   categories?: string[];
+  activeCategory?: string; // optional controlled tab
+  onCategoryChange?: (category: string) => void; // optional callback when tab changes
 }
 
 const ProductSection: React.FC<ProductSectionProps> = ({ 
   title, 
   subtitle, 
   products, 
-  categories = [] 
+  categories = [],
+  activeCategory: controlledActive,
+  onCategoryChange,
 }) => {
-  const [activeCategory, setActiveCategory] = useState('전체');
+  const [internalActive, setInternalActive] = useState('전체');
+  const activeCategory = controlledActive ?? internalActive;
 
   const filteredProducts = activeCategory === '전체' 
     ? products 
@@ -41,7 +46,7 @@ const ProductSection: React.FC<ProductSectionProps> = ({
           <div className="flex justify-center mb-8">
             <div className="flex space-x-1 bg-brand-gray-100 rounded-lg p-1 whitespace-nowrap overflow-x-auto sm:overflow-visible w-full sm:w-auto max-w-full sm:max-w-none scrollbar-hide">
               <button
-                onClick={() => setActiveCategory('전체')}
+                onClick={() => (onCategoryChange ? onCategoryChange('전체') : setInternalActive('전체'))}
                 className={`w-full sm:px-8 py-2.5 rounded-md text-sm font-medium transition-colors ${
                   activeCategory === '전체'
                     ? 'bg-white text-brand-gray-900 shadow-sm'
@@ -53,7 +58,7 @@ const ProductSection: React.FC<ProductSectionProps> = ({
               {categories.map((category) => (
                 <button
                   key={category}
-                  onClick={() => setActiveCategory(category)}
+                  onClick={() => (onCategoryChange ? onCategoryChange(category) : setInternalActive(category))}
                   className={`w-full sm:px-8 py-2.5 rounded-md text-sm font-medium transition-colors ${
                     activeCategory === category
                       ? 'bg-white text-brand-gray-900 shadow-sm'
