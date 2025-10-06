@@ -47,7 +47,7 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       {/* Toast UI */}
       <div
         aria-live="polite"
-        className={`fixed inset-x-0 ${opts?.position === 'top' ? 'top-6' : 'bottom-6'} flex justify-center px-4 pointer-events-none transition-opacity ${visible ? 'opacity-100' : 'opacity-0'}`}
+        className={`fixed inset-x-0 ${opts?.position === 'top' ? 'top-6' : 'bottom-6'} flex justify-center px-4 pointer-events-none transition-opacity ${visible ? 'opacity-100 z-50' : 'opacity-0'}`}
       >
         {opts && (
           <div className="pointer-events-auto max-w-md w-full bg-brand-gray-900 text-white rounded-lg shadow-lg border border-brand-gray-800">

@@ -69,7 +69,7 @@ export interface ProductDetailDto {
   pillSize?: string;
 }
 
-// List API
+// List API (public)
 export async function fetchProductList(params: {
   page?: number; // 1-based
   size?: number;
@@ -89,34 +89,74 @@ export async function fetchProductList(params: {
   if (params.categoryId != null) query.set('categoryId', String(params.categoryId));
   if (params.sort) query.set('sort', params.sort);
   if (params.direction) query.set('direction', params.direction);
-  return await get<PageResponseDto<ProductListDto>>(`/api/catalog/products?${query.toString()}`);
+  
+  const url = `/api/catalog/products?${query.toString()}`;
+  
+  try {
+    const result = await get<PageResponseDto<ProductListDto>>(url, { auth: false });
+    return result;
+  } catch (error) {
+    console.error('[Product] Failed to fetch product list:', error);
+    throw error;
+  }
 }
 
-// Detail API
+// Detail API (public)
 export async function fetchProductDetail(id: number): Promise<ProductDetailDto> {
-  return await get<ProductDetailDto>(`/api/catalog/products/${id}`);
+  const url = `/api/catalog/products/${id}`;
+  try {
+    const result = await get<ProductDetailDto>(url, { auth: false });
+    return result;
+  } catch (error) {
+    console.error('[Product] Failed to fetch product detail:', error);
+    throw error;
+  }
 }
 
-// Home sections
+// Home sections (public)
 export async function fetchBestsellers(params?: { categoryId?: number; size?: number }): Promise<ProductListDto[]> {
   const query = new URLSearchParams();
   if (params?.categoryId != null) query.set('categoryId', String(params.categoryId));
   if (params?.size != null) query.set('size', String(params.size));
   const qs = query.toString();
-  return await get<ProductListDto[]>(`/api/catalog/products/bestsellers${qs ? `?${qs}` : ''}`);
+  const url = `/api/catalog/products/bestsellers${qs ? `?${qs}` : ''}`;
+  
+  try {
+    const result = await get<ProductListDto[]>(url, { auth: false });
+    return result;
+  } catch (error) {
+    console.error('[Product] Failed to fetch bestsellers:', error);
+    throw error;
+  }
 }
 
 export async function fetchNewProducts(params?: { size?: number }): Promise<ProductListDto[]> {
   const query = new URLSearchParams();
   if (params?.size != null) query.set('size', String(params.size));
   const qs = query.toString();
-  return await get<ProductListDto[]>(`/api/catalog/products/new${qs ? `?${qs}` : ''}`);
+  const url = `/api/catalog/products/new${qs ? `?${qs}` : ''}`;
+  
+  try {
+    const result = await get<ProductListDto[]>(url, { auth: false });
+    return result;
+  } catch (error) {
+    console.error('[Product] Failed to fetch new products:', error);
+    throw error;
+  }
 }
 
 export async function fetchTopRated(params?: { size?: number }): Promise<ProductListDto[]> {
   const query = new URLSearchParams();
   if (params?.size != null) query.set('size', String(params.size));
   const qs = query.toString();
-  return await get<ProductListDto[]>(`/api/catalog/products/top-rated${qs ? `?${qs}` : ''}`);
+  const url = `/api/catalog/products/top-rated${qs ? `?${qs}` : ''}`;
+  
+  try {
+    const result = await get<ProductListDto[]>(url, { auth: false });
+    return result;
+  } catch (error) {
+    console.error('[Product] Failed to fetch top-rated:', error);
+    throw error;
+  }
 }
 

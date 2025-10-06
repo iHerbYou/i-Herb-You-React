@@ -4,6 +4,10 @@ import { products as allProducts, type Product as LegacyProduct } from '../data/
 import { useCart } from '../contexts/CartContext';
 import { useToast } from '../contexts/ToastContext';
 import { getCategoryTreeSync } from '../lib/catalog';
+import { fetchProductDetail, type ProductDetailDto } from '../lib/products';
+import { apiAddWishlist } from '../lib/wishlist';
+import ProductQnASection from '../components/ProductQnASection';
+import ProductReviewSection from '../components/ProductReviewSection';
 
 const MAX_QTY = 7;
 
@@ -36,107 +40,122 @@ const mockReviews: ReviewItem[] = [
   { id: 3, rating: 3, author: 'user90@example.com', createdAt: '2025-09-05', text: '무난합니다.' },
 ];
 
-function maskNickname(input: string): string {
-  const local = input.includes('@') ? input.split('@')[0] : input;
-  if (local.length <= 4) return local;
-  return local.slice(0, 4) + '*'.repeat(local.length - 4);
-}
 
-type BackendImage = { url: string; primary: boolean };
-type BackendVariant = {
-  id: number;
-  variantName: string;
-  listPrice: number;
-  salePrice: number;
-  stock: number;
-  soldOut: boolean;
-  upcCode: string;
-  restockEta?: string;
-  restockSubscriptionEnabled?: boolean;
-};
-
-type BackendProduct = {
-  id: number;
-  name: string;
-  brandId: number;
-  brandName: string;
-  categories: string[];
-  avgRating: number;
-  reviewCount: number;
-  code: string;
-  expirationDate?: number;
-  saleStartDate?: string;
-  images: BackendImage[];
-  variants: BackendVariant[];
-  description?: string;
-  instruction?: string;
-  ingredients?: string;
-  cautions?: string;
-  disclaimer?: string;
-  nutritionFacts?: string;
-  pillSize?: string;
-};
+type BackendImage = { url: string; isPrimary: boolean };
+type BackendVariant = ProductDetailDto['variants'][number];
+type BackendProduct = ProductDetailDto;
 
 const ProductDetail: React.FC = () => {
+  // ============ ALL HOOKS MUST BE AT THE TOP ============
   const { id } = useParams();
   const navigate = useNavigate();
   const { addToCart } = useCart();
   const { showToast } = useToast();
 
-  const legacy: LegacyProduct | undefined = useMemo(() => allProducts.find(p => String(p.id) === id), [id]);
-
-  const detail: BackendProduct | undefined = useMemo(() => {
-    if (!legacy) return undefined;
-    const img: BackendImage = { url: legacy.image, primary: true };
-    const variant: BackendVariant = {
-      id: legacy.id,
-      variantName: '기본 옵션',
-      listPrice: legacy.price,
-      salePrice: legacy.price,
-      stock: (legacy.reviewCount ?? 0) % 12 + 1,
-      soldOut: false,
-      upcCode: `880${legacy.id.toString().padStart(6, '0')}`,
-    };
-    return {
-      id: legacy.id,
-      name: legacy.name,
-      brandId: 0,
-      brandName: legacy.name.split(' ')[0] || 'iHerbYou',
-      categories: [legacy.category],
-      avgRating: legacy.rating ?? 0,
-      reviewCount: legacy.reviewCount ?? 0,
-      code: `PD-${legacy.id.toString().padStart(5, '0')}`,
-      expirationDate: Date.now() + 1000 * 60 * 60 * 24 * 450,
-      saleStartDate: '2025-01-01',
-      images: [img],
-      variants: [variant],
-      description: '엄선된 성분으로 구성된 건강 보조 제품입니다. 균형 잡힌 영양 공급에 도움을 줄 수 있습니다.',
-      instruction: '하루 1~2회, 1회 1정 식후 섭취를 권장합니다.',
-      ingredients: '비타민C, 비오틴, 히알루론산 등',
-      cautions: '특이 체질, 알레르기 체질인 경우 성분을 확인하세요.',
-      disclaimer: '본 정보는 의약품이 아닌 건강기능식품 관련 안내입니다.',
-      nutritionFacts: '1회(1정)당 비타민C 1000mg 외',
-      pillSize: '10x5x5mm',
-    };
-  }, [legacy]);
-
-  const brandName = detail?.brandName ?? '';
-
-  const images = useMemo(() => {
-    if (!detail) return [] as string[];
-    const sorted = [...detail.images].sort((a, b) => Number(b.primary) - Number(a.primary));
-    return sorted.map(i => i.url);
-  }, [detail]);
-
-  const selectedVariant: BackendVariant | undefined = detail?.variants?.[0];
-  const stock = selectedVariant?.stock ?? 0;
-
+  // All useState hooks
+  const [detail, setDetail] = useState<BackendProduct | undefined>(undefined);
+  const [selectedVariantId, setSelectedVariantId] = useState<number | null>(null);
   const [activeImg, setActiveImg] = useState(0);
   const [qty, setQty] = useState(1);
   const [askOpen, setAskOpen] = useState(false);
   const [qas, setQas] = useState<QAItem[]>(mockQAs);
   const [reviews, setReviews] = useState<ReviewItem[]>(mockReviews);
   const [writeOpen, setWriteOpen] = useState(false);
+  const [cartModalOpen, setCartModalOpen] = useState(false);
+  const [reportOpen, setReportOpen] = useState<null | { reviewId: number }>(null);
+  const [reviewSummary, setReviewSummary] = useState<{ average: number; totalCount: number } | null>(null);
+
+  // useEffect hook
+  React.useEffect(() => {
+    // Reset selectedVariantId when changing products
+    setSelectedVariantId(null);
+    
+    const legacy: LegacyProduct | undefined = allProducts.find(p => String(p.id) === id);
+    if (legacy) {
+      const img: BackendImage = { url: legacy.image, isPrimary: true };
+      const variant: BackendVariant = {
+        id: legacy.id,
+        variantName: '기본 옵션',
+        listPrice: legacy.price,
+        salePrice: legacy.price,
+        stock: (legacy.reviewCount ?? 0) % 12 + 1,
+        soldOut: false,
+        upcCode: `880${legacy.id?.toString().padStart(6, '0')}`,
+      } as BackendVariant;
+      const detailData = {
+        id: legacy.id,
+        name: legacy.name,
+        brandId: 0,
+        brandName: legacy.name.split(' ')[0] || 'iHerbYou',
+        categories: [legacy.category],
+        avgRating: legacy.rating ?? 0,
+        reviewCount: legacy.reviewCount ?? 0,
+        code: `PD-${legacy.id.toString().padStart(5, '0')}`,
+        expirationDate: Date.now() + 1000 * 60 * 60 * 24 * 450,
+        saleStartDate: '2025-01-01',
+        images: [img],
+        variants: [variant],
+        description: '엄선된 성분으로 구성된 건강 보조 제품입니다. 균형 잡힌 영양 공급에 도움을 줄 수 있습니다.',
+        instruction: '하루 1~2회, 1회 1정 식후 섭취를 권장합니다.',
+        ingredients: '비타민C, 비오틴, 히알루론산 등',
+        cautions: '특이 체질, 알레르기 체질인 경우 성분을 확인하세요.',
+        disclaimer: '본 정보는 의약품이 아닌 건강기능식품 관련 안내입니다.',
+        nutritionFacts: '1회(1정)당 비타민C 1000mg 외',
+        pillSize: '10x5x5mm',
+      };
+      setDetail(detailData);
+      // Auto-select first variant
+      setSelectedVariantId(variant.id);
+    }
+    
+    // Then fetch from backend and replace
+    const numId = Number(id);
+    
+    if (!Number.isNaN(numId)) {
+      fetchProductDetail(numId)
+        .then((dto) => {
+          // Normalize image primary field name (backend uses isPrimary)
+          const normalized: BackendProduct = {
+            ...dto,
+            images: (dto.images || []).map((i: any) => ({ url: i.url, isPrimary: i.isPrimary ?? (i.primary ?? i.is_primary) ?? false })),
+          } as BackendProduct;
+          setDetail(normalized);
+          // Auto-select first variant from API data
+          if (normalized.variants && normalized.variants.length > 0) {
+            setSelectedVariantId(normalized.variants[0].id);
+          }
+        })
+        .catch((error) => {
+          console.error('[ProductDetail] API fetch failed:', error);
+          // keep fallback
+        });
+    }
+  }, [id]);
+
+  const brandName = detail?.brandName ?? '';
+
+  const images = useMemo(() => {
+    if (!detail) return [] as string[];
+    const sorted = [...detail.images].sort((a, b) => Number(b.isPrimary) - Number(a.isPrimary));
+    return sorted.map(i => i.url);
+  }, [detail]);
+
+  const selectedVariant: BackendVariant | undefined = detail?.variants?.find(v => v.id === selectedVariantId);
+  const stock = selectedVariant?.stock ?? 0;
+  
+  // Calculate max quantity based on stock (max 7 or stock, whichever is smaller)
+  const maxQty = Math.min(MAX_QTY, stock);
+
+  // Reset quantity when variant changes or when maxQty changes
+  React.useEffect(() => {
+    if (selectedVariant) {
+      if (maxQty === 0) {
+        setQty(0);
+      } else if (qty > maxQty || qty === 0) {
+        setQty(Math.max(1, maxQty));
+      }
+    }
+  }, [selectedVariantId, maxQty, selectedVariant, qty]);
 
   const priceFormatted = (p: number) => p.toLocaleString() + '원';
 
@@ -160,26 +179,32 @@ const ProductDetail: React.FC = () => {
     }
   };
 
-  const canDeleteQA = (author: string) => {
-    const { nickname, role } = getAuth();
-    return role === 'admin' || nickname === author;
-  };
-
-  const handleDeleteQA = (qaId: number) => {
-    setQas(prev => prev.filter(q => q.id !== qaId));
-    showToast({ message: '삭제되었습니다.' });
-  };
-
-  const handleWishlist = () => {
+  const handleWishlist = async () => {
     const { loggedIn } = getAuth();
     if (!loggedIn) {
       navigate('/login');
       return;
     }
-    showToast({ message: '위시리스트에 추가되었습니다', actionLabel: '위시리스트 보기', onAction: () => (window.location.href = '/wishlist') });
+
+    if (!detail) return;
+
+    try {
+      await apiAddWishlist(detail.id);
+      showToast({ 
+        message: '위시리스트에 추가되었습니다', 
+        actionLabel: '위시리스트 보기', 
+        onAction: () => (window.location.href = '/wishlist') 
+      });
+    } catch (error: any) {
+      console.error('Failed to add to wishlist:', error);
+      if (error.message && error.message.includes('이미')) {
+        showToast({ message: '이미 위시리스트에 있는 상품입니다.' });
+      } else {
+        showToast({ message: '위시리스트 추가에 실패했습니다.' });
+      }
+    }
   };
 
-  const [cartModalOpen, setCartModalOpen] = useState(false);
   const closeCartModal = () => setCartModalOpen(false);
 
   const displayPrice = useMemo(() => {
@@ -213,6 +238,13 @@ const ProductDetail: React.FC = () => {
       .slice(0, 4);
   }, [detail]);
 
+  // Use review summary if available, otherwise fallback to detail
+  const rating = reviewSummary ? Math.round(reviewSummary.average * 10) / 10 : (detail?.avgRating ?? 0);
+  const reviewCount = reviewSummary ? reviewSummary.totalCount : (detail?.reviewCount ?? 0);
+
+  const prevImage = () => setActiveImg((i) => (i - 1 + images.length) % images.length);
+  const nextImage = () => setActiveImg((i) => (i + 1) % images.length);
+
   if (!detail) {
     return (
       <div className="min-h-[calc(100vh-124px)] flex items-center justify-center">
@@ -221,48 +253,45 @@ const ProductDetail: React.FC = () => {
     );
   }
 
-  const rating = detail.avgRating ?? 0;
-
-  const prevImage = () => setActiveImg((i) => (i - 1 + images.length) % images.length);
-  const nextImage = () => setActiveImg((i) => (i + 1) % images.length);
-
-  const { loggedIn, role } = getAuth();
-  const isAdmin = role === 'admin';
-
-  const [reportOpen, setReportOpen] = useState<null | { reviewId: number }>(null);
-
-  const handleReportClick = (reviewId: number) => {
-    if (!loggedIn) {
-      navigate('/login');
-      return;
-    }
-    setReportOpen({ reviewId });
-  };
-
-  const handleAdminDeleteReview = (reviewId: number, author: string) => {
-    setReviews(prev => prev.filter(r => r.id !== reviewId));
-    try {
-      const key = `warnings:${author}`;
-      const raw = window.sessionStorage.getItem(key);
-      const count = raw ? parseInt(raw, 10) || 0 : 0;
-      window.sessionStorage.setItem(key, String(count + 1));
-    } catch {}
-    showToast({ message: '리뷰가 삭제되었습니다.' });
-  };
-
   return (
     <div className="min-h-[calc(100vh-124px)] bg-white">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         {/* Breadcrumbs */}
         <nav className="text-sm text-brand-gray-600 mb-3">
           <Link to="/" className="hover:text-brand-pink">홈</Link>
-          <span className="mx-2 text-brand-gray-400">&gt;</span>
-          {(() => {
-            const topName = detail.categories[0];
-            const top = getCategoryTreeSync().find(t => t.name === topName);
-            const href = top ? `/c/${top.id}` : '#';
-            return <Link to={href} className="hover:text-brand-pink">{topName}</Link>;
-          })()}
+          {detail.categories.map((categoryName, index) => {
+            const categoryTree = getCategoryTreeSync();
+            let categoryUrl = '#';
+            
+            // Find the category in the tree structure
+            for (const top of categoryTree) {
+              if (top.name === categoryName) {
+                categoryUrl = `/c/${top.id}`;
+                break;
+              }
+              for (const mid of top.children) {
+                if (mid.name === categoryName) {
+                  categoryUrl = `/c/${top.id}/${mid.id}`;
+                  break;
+                }
+                if (mid.items) {
+                  for (const small of mid.items) {
+                    if (small.name === categoryName) {
+                      categoryUrl = `/c/${top.id}/${mid.id}/${small.id}`;
+                      break;
+                    }
+                  }
+                }
+              }
+            }
+            
+            return (
+              <React.Fragment key={index}>
+                <span className="mx-2 text-brand-gray-400">&gt;</span>
+                <Link to={categoryUrl} className="hover:text-brand-pink">{categoryName}</Link>
+              </React.Fragment>
+            );
+          })}
           <span className="mx-2 text-brand-gray-400">&gt;</span>
           <span className="text-brand-gray-900">{detail.name}</span>
         </nav>
@@ -312,13 +341,28 @@ const ProductDetail: React.FC = () => {
 
             <div className="flex items-center gap-3 mb-2">
               <div className="flex text-yellow-400">
-                {Array.from({ length: 5 }).map((_, i) => (
-                  <svg key={i} className="w-5 h-5" viewBox="0 0 20 20" fill={i + 1 <= Math.round(rating) ? 'currentColor' : 'none'} stroke="currentColor">
-                    <path d="M10 15l-5.878 3.09 1.122-6.545L.488 6.91l6.561-.953L10 0l2.951 5.957 6.561.953-4.756 4.635 1.122 6.545z" />
-                  </svg>
-                ))}
+                {Array.from({ length: 5 }).map((_, i) => {
+                  const fillPercentage = Math.min(Math.max(rating - i, 0), 1) * 100;
+                  
+                  return (
+                    <svg key={i} className="w-5 h-5 relative" viewBox="0 0 20 20">
+                      <defs>
+                        <linearGradient id={`star-gradient-${i}`}>
+                          <stop offset={`${fillPercentage}%`} stopColor="currentColor" />
+                          <stop offset={`${fillPercentage}%`} stopColor="transparent" />
+                        </linearGradient>
+                      </defs>
+                      <path 
+                        d="M10 15l-5.878 3.09 1.122-6.545L.488 6.91l6.561-.953L10 0l2.951 5.957 6.561.953-4.756 4.635 1.122 6.545z" 
+                        fill={fillPercentage > 0 ? `url(#star-gradient-${i})` : 'none'}
+                        stroke="currentColor"
+                        strokeWidth="1"
+                      />
+                    </svg>
+                  );
+                })}
               </div>
-              <span className="text-sm text-brand-gray-600">({detail.reviewCount ?? 0} 리뷰)</span>
+              <span className="text-sm text-brand-gray-600">{rating.toFixed(1)} ({reviewCount} 리뷰)</span>
             </div>
 
             <div className="text-2xl font-bold text-brand-gray-900 mb-3">
@@ -328,23 +372,99 @@ const ProductDetail: React.FC = () => {
               {priceFormatted(displayPrice)}
             </div>
 
+            {/* Variant Selection */}
+            {detail.variants && detail.variants.length > 1 && (
+              <div className="mb-4">
+                <label className="text-sm text-brand-gray-700 mb-2 block">옵션 선택</label>
+                <div className="flex gap-2 overflow-x-auto">
+                  {detail.variants.map((variant) => {
+                    const isSelected = selectedVariantId === variant.id;
+                    const variantPrice = variant.salePrice > 0 ? variant.salePrice : variant.listPrice;
+                    const hasDiscount = variant.salePrice > 0 && variant.salePrice < variant.listPrice;
+                    
+                    return (
+                      <button
+                        key={variant.id}
+                        onClick={() => setSelectedVariantId(variant.id)}
+                        disabled={variant.soldOut}
+                        className={`
+                          relative px-4 py-3 rounded-lg border border-solid text-left transition-all whitespace-nowrap flex-shrink-0
+                          ${isSelected 
+                            ? 'border-brand-pink bg-brand-pink/5' 
+                            : 'border-gray-200 hover:border-gray-300'
+                          }
+                          ${variant.soldOut 
+                            ? 'opacity-50 cursor-not-allowed bg-gray-50' 
+                            : 'cursor-pointer'
+                          }
+                        `}
+                      >
+                        <div className="flex flex-col gap-1">
+                          <div className="flex items-center gap-2">
+                            <span className="font-medium text-sm text-brand-gray-900">{variant.variantName}</span>
+                            {isSelected && (
+                              <span className="flex items-center justify-center w-4 h-4 rounded-full bg-brand-pink text-white text-[10px]">
+                                ✓
+                              </span>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-2">
+                            {hasDiscount && (
+                              <span className="text-xs text-brand-gray-400 line-through">
+                                {priceFormatted(variant.listPrice)}
+                              </span>
+                            )}
+                            <span className={`text-sm font-semibold ${hasDiscount ? 'text-brand-pink' : 'text-brand-gray-900'}`}>
+                              {priceFormatted(variantPrice)}
+                            </span>
+                          </div>
+                          <div>
+                            {variant.soldOut ? (
+                              <span className="text-xs text-red-500 font-medium">품절</span>
+                            ) : (
+                              <span className="text-xs text-brand-gray-500">
+                                재고 {variant.stock}개
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
             <div className="flex items-center gap-4 mb-4">
               <div className="flex items-center gap-2">
                 <span className="text-sm text-brand-gray-700">수량</span>
-                <div className="inline-flex items-center border border-gray-300 rounded-md overflow-hidden">
-                  <button onClick={()=>setQty(Math.max(1, qty-1))} className="px-3 py-1 text-brand-gray-700 hover:bg-gray-50">-</button>
-                  <span className="px-4 text-brand-gray-900">{qty}</span>
-                  <button onClick={()=>setQty(Math.min(MAX_QTY, qty+1))} className="px-3 py-1 text-brand-gray-700 hover:bg-gray-50">+</button>
+                <div className={`inline-flex items-center border border-gray-300 rounded-md overflow-hidden ${stock === 0 ? 'opacity-50' : ''}`}>
+                  <button onClick={()=>setQty(Math.max(1, qty-1))} disabled={stock === 0} className="px-3 py-1 text-brand-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed">-</button>
+                  <span className="px-4 text-brand-gray-900">{stock === 0 ? 0 : qty}</span>
+                  <button onClick={()=>setQty(Math.min(maxQty, qty+1))} disabled={stock === 0} className="px-3 py-1 text-brand-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed">+</button>
                 </div>
-                <span className="text-xs text-brand-gray-500">(최대 {MAX_QTY}개)</span>
+                <span className="text-xs text-brand-gray-500">(최대 {maxQty}개)</span>
               </div>
-              {stock <= 5 && (
+              {stock <= 5 && stock > 0 && (
                 <span className="text-xs px-2 py-1 rounded-full bg-red-50 text-red-600 border border-red-200">재고 {stock}개 남음</span>
+              )}
+              {stock === 0 && (
+                <span className="text-xs px-2 py-1 rounded-full bg-gray-100 text-gray-600 border border-gray-300">품절</span>
               )}
             </div>
 
             <div className="flex items-center gap-2 mb-4">
-              <button onClick={addToCartAndShow} className="px-5 py-2 rounded-md bg-brand-pink text-brand-gray-900 hover:bg-brand-pink/80 font-semibold">장바구니에 추가</button>
+              <button 
+                onClick={addToCartAndShow} 
+                disabled={stock === 0}
+                className={`px-5 py-2 rounded-md font-semibold transition-colors ${
+                  stock === 0 
+                    ? 'bg-gray-300 text-gray-500 cursor-not-allowed' 
+                    : 'bg-brand-pink text-brand-gray-900 hover:bg-brand-pink/80'
+                }`}
+              >
+                장바구니에 추가
+              </button>
               <button onClick={handleWishlist} className="px-5 py-2 rounded-md bg-gray-100 border border-gray-200 text-brand-gray-700 hover:bg-gray-200 inline-flex items-center gap-2">
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"/></svg>
                 위시리스트
@@ -374,141 +494,103 @@ const ProductDetail: React.FC = () => {
 
         {/* Tabs: Description / Q&A / Reviews */}
         <div className="mt-10">
-          <div className="flex gap-4 border-b">
-            <a href="#desc" className="px-3 py-2 text-sm text-brand-gray-700 hover:text-brand-pink">상품 정보</a>
-            <a href="#qa" className="px-3 py-2 text-sm text-brand-gray-700 hover:text-brand-pink">질문 & 답변</a>
-            <a href="#reviews" className="px-3 py-2 text-sm text-brand-gray-700 hover:text-brand-pink">구매후기</a>
+          <div className="flex gap-4 border-b sticky top-0 bg-white z-10">
+            <a 
+              href="#desc" 
+              className="px-3 py-2 text-sm text-brand-gray-700 hover:text-brand-pink transition-colors"
+              onClick={(e) => {
+                e.preventDefault();
+                document.getElementById('desc')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+              }}
+            >
+              상품 정보
+            </a>
+            <a 
+              href="#qa" 
+              className="px-3 py-2 text-sm text-brand-gray-700 hover:text-brand-pink transition-colors"
+              onClick={(e) => {
+                e.preventDefault();
+                document.getElementById('qa')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+              }}
+            >
+              질문 & 답변
+            </a>
+            <a 
+              href="#reviews" 
+              className="px-3 py-2 text-sm text-brand-gray-700 hover:text-brand-pink transition-colors"
+              onClick={(e) => {
+                e.preventDefault();
+                document.getElementById('reviews')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+              }}
+            >
+              구매후기
+            </a>
           </div>
 
           {/* Description */}
           <section id="desc" className="py-6">
-            <h2 className="text-lg font-semibold text-brand-gray-900 mb-3">상세 설명</h2>
-            <p className="text-sm text-brand-gray-700 mb-4">엄선된 성분으로 구성된 건강 보조 제품입니다. 균형 잡힌 영양 공급에 도움을 줄 수 있습니다.</p>
+          <h2 className="text-2xl font-bold text-gray-900 mb-1">상세 설명</h2>
+            {detail.description && (
+              <p className="text-md text-brand-gray-700 mb-4 whitespace-pre-wrap">{detail.description}</p>
+            )}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm text-brand-gray-700">
-              <div>
-                <h3 className="font-semibold mb-1">사용법</h3>
-                <p>하루 1~2회, 1회 1정 식후 섭취를 권장합니다.</p>
-              </div>
-              <div>
-                <h3 className="font-semibold mb-1">성분 정보</h3>
-                <p>비타민C, 비오틴, 히알루론산 등</p>
-              </div>
-              <div>
-                <h3 className="font-semibold mb-1">주의사항</h3>
-                <p>특이 체질, 알레르기 체질인 경우 성분을 확인하세요.</p>
-              </div>
-              <div>
-                <h3 className="font-semibold mb-1">영양 성분</h3>
-                <p>1회(1정)당 비타민C 1000mg 외</p>
-              </div>
-              <div>
-                <h3 className="font-semibold mb-1">무게/부피</h3>
-                <p>500g / 350ml</p>
-              </div>
-              <div>
-                <h3 className="font-semibold mb-1">판매 시작일</h3>
-                <p>2025-01-01</p>
-              </div>
+              {detail.instruction && (
+                <div>
+                  <h3 className="font-semibold mb-1">사용법</h3>
+                  <p className="whitespace-pre-wrap">{detail.instruction}</p>
+                </div>
+              )}
+              {detail.ingredients && (
+                <div>
+                  <h3 className="font-semibold mb-1">성분 정보</h3>
+                  <p className="whitespace-pre-wrap">{detail.ingredients}</p>
+                </div>
+              )}
+              {detail.cautions && (
+                <div>
+                  <h3 className="font-semibold mb-1">주의사항</h3>
+                  <p className="whitespace-pre-wrap">{detail.cautions}</p>
+                </div>
+              )}
+              {detail.nutritionFacts && (
+                <div>
+                  <h3 className="font-semibold mb-1">영양 성분</h3>
+                  <p className="whitespace-pre-wrap">{detail.nutritionFacts}</p>
+                </div>
+              )}
+              {detail.pillSize && (
+                <div>
+                  <h3 className="font-semibold mb-1">알약 크기</h3>
+                  <p>{detail.pillSize}</p>
+                </div>
+              )}
+              {detail.saleStartDate && (
+                <div>
+                  <h3 className="font-semibold mb-1">판매 시작일</h3>
+                  <p>{new Date(detail.saleStartDate).toLocaleDateString('ko-KR')}</p>
+                </div>
+              )}
+              {detail.disclaimer && (
+                <div className="sm:col-span-2">
+                  <h3 className="font-semibold mb-1">고지사항</h3>
+                  <p className="whitespace-pre-wrap text-xs text-brand-gray-600">{detail.disclaimer}</p>
+                </div>
+              )}
             </div>
           </section>
 
-          {/* Q&A */}
-          <section id="qa" className="py-6">
-            <div className="flex items-center justify-between mb-3">
-              <h2 className="text-lg font-semibold text-brand-gray-900">질문 & 답변</h2>
-              <div className="flex items-center gap-2">
-                <Link to={`/p/${detail.id}/qna`} className="text-sm text-brand-gray-700 hover:text-brand-pink">질문&답변 전체보기</Link>
-                <button onClick={()=>setAskOpen(true)} className="px-4 py-2 rounded-md text-sm bg-brand-green text-white hover:bg-brand-darkGreen">질문하기</button>
-              </div>
-            </div>
-            <div className="mb-3 flex items-center gap-2">
-              <label className="text-sm text-brand-gray-700">정렬</label>
-              <select className="border border-gray-300 rounded-md px-2 py-1 text-sm">
-                <option>최신순</option>
-              </select>
-            </div>
-            <div className="space-y-3">
-              {qas.map(q => (
-                <div key={q.id} className="border rounded-lg p-3">
-                  <div className="flex items-start justify-between">
-                    <div className="min-w-0">
-                      <p className="text-sm font-medium text-brand-gray-900">{q.title}</p>
-                      <p className="text-sm text-brand-gray-700 mt-1 whitespace-pre-wrap">{q.body}</p>
-                      <div className="flex items-center gap-2 mt-2 text-xs text-brand-gray-500">
-                        <div className="w-5 h-5 rounded-full bg-brand-gray-200 flex items-center justify-center text-[10px] text-brand-gray-700">
-                          {maskNickname(q.author).slice(0,1).toUpperCase()}
-                        </div>
-                        <span>{maskNickname(q.author)}</span>
-                        <span>·</span>
-                        <span>{q.createdAt}</span>
-                      </div>
-                    </div>
-                    {canDeleteQA(q.author) && (
-                      <button onClick={()=>handleDeleteQA(q.id)} className="text-xs text-brand-gray-500 hover:text-red-500">삭제</button>
-                    )}
-                  </div>
-                  {q.answer && (
-                    <div className="mt-3 rounded-md bg-brand-gray-100 p-3 text-sm">
-                      <p className="text-brand-gray-900 font-medium mb-1">답변</p>
-                      <p className="text-brand-gray-700 whitespace-pre-wrap">{q.answer.body}</p>
-                      <p className="text-xs text-brand-gray-500 mt-1">{q.answer.createdAt}</p>
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
+          {/* Q&A Section */}
+          <section id="qa">
+            <ProductQnASection productId={detail.id} />
           </section>
 
-          {/* Reviews */}
-          <section id="reviews" className="py-6">
-            <div className="flex items-center justify-between mb-3">
-              <h2 className="text-lg font-semibold text-brand-gray-900">구매후기</h2>
-              <button onClick={()=>{ if(!loggedIn){ navigate('/login'); } else { setWriteOpen(true);} }} className="px-4 py-2 rounded-md text-sm bg-brand-green text-white hover:bg-brand-darkGreen">구매후기 작성하기</button>
-            </div>
-            <div className="mb-4 flex items-center gap-4">
-              <div className="text-2xl font-bold text-brand-gray-900">{(detail.avgRating ?? 0).toFixed(1)}</div>
-              <div className="flex text-yellow-400">
-                {Array.from({ length: 5 }).map((_, i) => (
-                  <svg key={i} className="w-5 h-5" viewBox="0 0 20 20" fill={i + 1 <= Math.round(rating) ? 'currentColor' : 'none'} stroke="currentColor">
-                    <path d="M10 15l-5.878 3.09 1.122-6.545L.488 6.91l6.561-.953L10 0l2.951 5.957 6.561.953-4.756 4.635 1.122 6.545z" />
-                  </svg>
-                ))}
-              </div>
-              <span className="text-sm text-brand-gray-600">({detail.reviewCount ?? 0}개 리뷰)</span>
-            </div>
-            <div className="space-y-3">
-              {reviews.map(r => (
-                <div key={r.id} className="border rounded-lg p-3">
-                  <div className="flex items-center justify-between mb-1">
-                    <div className="flex items-center gap-2 min-w-0">
-                      <div className="flex text-yellow-400">
-                        {Array.from({ length: 5 }).map((_, i) => (
-                          <svg key={i} className="w-4 h-4" viewBox="0 0 20 20" fill={i + 1 <= r.rating ? 'currentColor' : 'none'} stroke="currentColor">
-                            <path d="M10 15l-5.878 3.09 1.122-6.545L.488 6.91l6.561-.953L10 0l2.951 5.957 6.561.953-4.756 4.635 1.122 6.545z" />
-                          </svg>
-                        ))}
-                      </div>
-                      <span className="text-xs text-brand-gray-600 truncate">{r.createdAt} · {maskNickname(r.author)}</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      {isAdmin && (
-                        <button onClick={()=>handleAdminDeleteReview(r.id, r.author)} className="text-xs text-brand-gray-600 hover:text-red-500">삭제</button>
-                      )}
-                      <button onClick={()=>handleReportClick(r.id)} className="text-xs text-brand-gray-600 hover:text-red-500">신고하기</button>
-                    </div>
-                  </div>
-                  <p className="text-sm text-brand-gray-800 whitespace-pre-wrap">{r.text}</p>
-                  {r.images && r.images.length > 0 && (
-                    <div className="mt-2 flex gap-2">
-                      {r.images.map((src, i) => (
-                        <img key={i} src={src} alt="review" className="w-16 h-16 rounded-md object-cover" />
-                      ))}
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          </section>
+          {/* Reviews Section */}
+        <section id="reviews">
+          <ProductReviewSection 
+            productId={detail.id} 
+            onSummaryLoad={(summary) => setReviewSummary(summary)}
+          />
+        </section>
         </div>
       </div>
 

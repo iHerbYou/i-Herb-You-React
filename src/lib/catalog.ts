@@ -36,13 +36,17 @@ function mapDtoToLocal(dto: CategoryTreeDto[]): TopCategory[] {
 }
 
 export async function getCategoryTree(): Promise<TopCategory[]> {
+  // Return cached result immediately if available
   if (cachedCategories) return cachedCategories;
+  // If a request is already in flight, wait for it
   if (inFlight) return inFlight;
+  
   inFlight = (async () => {
     try {
-      const res = await get<CategoryTreeDto[]>('/api/catalog/categories/tree');
+      const res = await get<CategoryTreeDto[]>('/api/catalog/categories/tree', { auth: false });
       cachedCategories = Array.isArray(res) && res.length ? mapDtoToLocal(res) : localCategories;
-    } catch {
+    } catch (err) {
+      console.warn('[catalog] Failed to fetch categories, using local fallback:', err);
       cachedCategories = localCategories;
     } finally {
       inFlight = null;

@@ -97,7 +97,7 @@ const Wishlist: React.FC = () => {
         ) : items.length === 0 ? (
           <div className="text-center py-16">
             <p className="text-brand-gray-700 mb-4">위시리스트가 비어있습니다.</p>
-            <Link to="/" className="inline-block px-4 py-2 rounded-md bg-brand-pink text-brand-gray-900 hover:bg-brand-pink/80 text-sm">상품 보러 가기</Link>
+            <Link to="/" className="inline-block px-4 py-2 rounded-md bg-brand-pink text-brand-gray-900 hover:bg-brand-pink/80 text-sm">상품 구경하러 가기</Link>
           </div>
         ) : (
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-6">
@@ -129,7 +129,7 @@ const Wishlist: React.FC = () => {
         )}
         {items.length > 0 && (
           <div className="mt-8 flex justify-center">
-            <Link to="/" className="px-4 py-2 rounded-md bg-brand-pink text-brand-gray-900 hover:bg-brand-pink/80 text-sm">상품 보러 가기</Link>
+            <Link to="/" className="px-4 py-2 rounded-md bg-brand-pink text-brand-gray-900 hover:bg-brand-pink/80 text-sm">상품 구경하러 가기</Link>
           </div>
         )}
       </div>

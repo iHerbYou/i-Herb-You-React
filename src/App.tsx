@@ -11,6 +11,7 @@ import NotFound from './pages/NotFound';
 import CategoryList from './pages/CategoryList';
 import ProductDetail from './pages/ProductDetail';
 import ProductQnA from './pages/ProductQnA';
+import ProductReviews from './pages/ProductReviews';
 import Wishlist from './pages/Wishlist';
 import SharedWishlist from './pages/SharedWishlist';
 import Account from './pages/Account';
@@ -34,7 +35,9 @@ function App() {
                 <Route path="/c/:topId/:midId" element={<CategoryList />} />
                 <Route path="/c/:topId/:midId/:subId" element={<CategoryList />} />
                 <Route path="/p/:id" element={<ProductDetail />} />
-                <Route path="/p/:id/qna" element={<ProductQnA />} />
+                <Route path="/products/:id" element={<ProductDetail />} />
+                <Route path="/products/:id/qna" element={<ProductQnA />} />
+                <Route path="/products/:id/reviews" element={<ProductReviews />} />
                 <Route path="/s/:shareId" element={<SharedWishlist />} />
                 <Route element={<GuestOnly />}>
                   <Route path="/login" element={<Login />} />

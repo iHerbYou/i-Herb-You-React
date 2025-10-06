@@ -11,8 +11,8 @@ const Footer: React.FC = () => {
           <div>
             <h3 className="text-lg font-semibold mb-4">아이허브유</h3>
             <div className="space-y-2 text-sm text-brand-gray-300">
-              <p>대표자명: 정수진</p>
-              <p>대표 전화: 010-3724-6480</p>
+              <p>대표자명: 정허브</p>
+              <p>대표 전화: 010-1234-5678</p>
               <p>이메일: sojjung3@gmail.com</p>
               <p>서울특별시 강남구 강남대로 364</p>
             </div>
