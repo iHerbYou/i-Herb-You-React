@@ -108,3 +108,25 @@ export async function confirmPasswordReset(token: string, newPassword: string): 
   );
   return res;
 }
+
+export type EmailVerificationResponse = {
+  message: string;
+};
+
+export async function verifyEmail(token: string): Promise<EmailVerificationResponse> {
+  const { get } = await import('./api');
+  const res = await get<EmailVerificationResponse>(
+    `/api/users/verify-email?token=${encodeURIComponent(token)}`,
+    { credentials: 'include', auth: false }
+  );
+  return res;
+}
+
+export async function resendVerificationEmail(email: string): Promise<EmailVerificationResponse> {
+  const res = await post<EmailVerificationResponse>(
+    `/api/users/resend-verification?email=${encodeURIComponent(email)}`,
+    undefined,
+    { credentials: 'include', auth: false }
+  );
+  return res;
+}

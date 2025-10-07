@@ -150,7 +150,24 @@ export async function api<T = unknown>(
 
   if (!res.ok) {
     const text = await res.text().catch(() => '');
-    throw new Error(`API ${res.status}: ${text || res.statusText}`);
+    let errorMessage = res.statusText;
+    
+    // Try to parse JSON error response and extract message field
+    if (text) {
+      try {
+        const errorData = JSON.parse(text);
+        if (errorData.message) {
+          errorMessage = errorData.message;
+        } else {
+          errorMessage = text;
+        }
+      } catch {
+        errorMessage = text;
+      }
+    }
+    
+    const error = new Error(errorMessage);
+    throw error;
   }
 
   const contentType = res.headers.get('content-type') || '';

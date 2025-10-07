@@ -7,6 +7,7 @@ import Signup from './pages/Signup';
 import EventCoupon from './pages/EventCoupon';
 import FindEmail from './pages/FindEmail';
 import ResetPassword from './pages/ResetPassword';
+import VerifyEmail from './pages/VerifyEmail';
 import NotFound from './pages/NotFound';
 import CategoryList from './pages/CategoryList';
 import ProductDetail from './pages/ProductDetail';
@@ -46,6 +47,7 @@ function App() {
                 <Route path="/find-email" element={<FindEmail />} />
                 <Route path="/event/coupon" element={<EventCoupon />} />
                 <Route path="/reset-password" element={<ResetPassword />} />
+                <Route path="/verify-email" element={<VerifyEmail />} />
                 <Route element={<RequireAuth />}>
                   <Route path="/wishlist" element={<Wishlist />} />
                   <Route path="/account" element={<Account />} />
