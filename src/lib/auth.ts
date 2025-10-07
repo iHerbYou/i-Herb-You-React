@@ -1,4 +1,4 @@
-import { post } from './api';
+import { get, post } from './api';
 import { setAuthTokenCookie, clearAuthTokenCookie, setRefreshTokenCookie, clearRefreshTokenCookie } from './api';
 
 export type LoginResponse = {
