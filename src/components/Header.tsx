@@ -449,39 +449,6 @@ const Header: React.FC = () => {
                 </button>
               ))}
               
-              {/* 모바일 브랜드 메뉴 */}
-              <div className="border-t border-gray-200 pt-2 mt-2">
-                <div className="px-3 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                  브랜드
-                </div>
-                <div className="grid grid-cols-2 gap-1 px-3">
-                  {brands.filter(brand => brand.productCount > 0).slice(0, 8).map((brand) => (
-                    <button
-                      key={brand.id}
-                      onClick={() => { setIsMenuOpen(false); navigate(`/brands/${brand.id}`); }}
-                      className="block w-full text-left px-2 py-1.5 text-sm text-gray-700 hover:text-brand-green hover:bg-brand-gray-50 rounded"
-                    >
-                      <span className="font-medium">{brand.name}</span>
-                      <span className="text-xs text-gray-500 ml-1">({brand.productCount})</span>
-                    </button>
-                  ))}
-                </div>
-                {brands.filter(brand => brand.productCount > 0).length > 8 && (
-                  <div className="px-3 mt-2">
-                    <button
-                      onClick={() => { setIsMenuOpen(false); navigate('/brands'); }}
-                      className="text-sm text-brand-green hover:text-brand-darkGreen font-medium"
-                    >
-                      모든 브랜드 보기 ({brands.filter(brand => brand.productCount > 0).length}개)
-                    </button>
-                  </div>
-                )}
-                {brands.length > 0 && brands.filter(brand => brand.productCount > 0).length === 0 && (
-                  <div className="px-3 mt-2">
-                    <p className="text-sm text-gray-500 text-center py-2">상품이 있는 브랜드가 없습니다.</p>
-                  </div>
-                )}
-              </div>
 
               {!isAuthed ? (
                 <Link to="/login" onClick={() => setIsMenuOpen(false)} className="block px-3 py-2 text-gray-700 hover:text-green-600">로그인</Link>
