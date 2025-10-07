@@ -5,11 +5,15 @@ import type { TopCategory, MidCategory } from '../data/categories';
 import { logout as authLogout } from '../lib/auth';
 import { getSuggestions, type SuggestionResponse } from '../lib/search';
 import { getSearchHistory, addSearchHistory, removeSearchHistory, type SearchHistoryItem } from '../lib/searchHistory';
+import { getAllBrands, type BrandResponse } from '../lib/brands';
 
 const Header: React.FC = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [showTopBanner, setShowTopBanner] = useState(true);
   const [catalog, setCatalog] = useState<TopCategory[]>(() => getCategoryTreeSync());
+  
+  // 브랜드 관련 state
+  const [brands, setBrands] = useState<BrandResponse[]>([]);
   
   // 검색 관련 state
   const [searchQuery, setSearchQuery] = useState('');
@@ -40,6 +44,9 @@ const Header: React.FC = () => {
   useEffect(() => {
     // warm and update catalog
     getCategoryTree().then(setCatalog).catch(() => {});
+    
+    // 브랜드 목록 로드
+    getAllBrands().then(setBrands).catch(() => setBrands([]));
 
     try {
       const raw = typeof window !== 'undefined' ? window.sessionStorage.getItem('hideTopBannerUntil') : null;
@@ -245,6 +252,40 @@ const Header: React.FC = () => {
                 </div>
               </div>
             ))}
+
+            {/* 브랜드 메뉴 */}
+            <div className="relative group">
+              <button className="relative inline-flex items-center h-20 px-2 text-brand-gray-800 font-medium after:content-[''] after:block after:absolute after:bottom-0 after:left-0 after:h-[2px] after:bg-brand-pink after:w-full after:scale-x-0 group-hover:after:scale-x-100 after:origin-right group-hover:after:origin-left after:transition after:duration-500">
+                <span>브랜드</span>
+                <svg className="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+
+              {/* 브랜드 드롭다운 */}
+              <div className="absolute top-full left-0 w-[400px] bg-white shadow-lg rounded-md border z-50 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-opacity before:content-[''] before:absolute before:inset-x-0 before:-top-2 before:h-2">
+                <div className="p-4 max-h-[60vh] overflow-y-auto">
+                  <div className="grid grid-cols-2 gap-2">
+                    {brands.filter(brand => brand.productCount > 0).map((brand) => (
+                      <button
+                        key={brand.id}
+                        onClick={() => navigate(`/brands/${brand.id}`)}
+                        className="text-left p-0 text-sm text-gray-700 hover:text-brand-pink transition-colors"
+                      >
+                        <span className="font-medium">{brand.name}</span>
+                        <span className="text-xs text-gray-500 ml-1">({brand.productCount})</span>
+                      </button>
+                    ))}
+                  </div>
+                  {brands.length === 0 && (
+                    <p className="text-sm text-gray-500 text-center py-4">브랜드를 불러오는 중...</p>
+                  )}
+                  {brands.length > 0 && brands.filter(brand => brand.productCount > 0).length === 0 && (
+                    <p className="text-sm text-gray-500 text-center py-4">상품이 있는 브랜드가 없습니다.</p>
+                  )}
+                </div>
+              </div>
+            </div>
           </nav>
 
           {/* Search Bar */}
@@ -407,6 +448,41 @@ const Header: React.FC = () => {
                   {top.name}
                 </button>
               ))}
+              
+              {/* 모바일 브랜드 메뉴 */}
+              <div className="border-t border-gray-200 pt-2 mt-2">
+                <div className="px-3 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                  브랜드
+                </div>
+                <div className="grid grid-cols-2 gap-1 px-3">
+                  {brands.filter(brand => brand.productCount > 0).slice(0, 8).map((brand) => (
+                    <button
+                      key={brand.id}
+                      onClick={() => { setIsMenuOpen(false); navigate(`/brands/${brand.id}`); }}
+                      className="block w-full text-left px-2 py-1.5 text-sm text-gray-700 hover:text-brand-green hover:bg-brand-gray-50 rounded"
+                    >
+                      <span className="font-medium">{brand.name}</span>
+                      <span className="text-xs text-gray-500 ml-1">({brand.productCount})</span>
+                    </button>
+                  ))}
+                </div>
+                {brands.filter(brand => brand.productCount > 0).length > 8 && (
+                  <div className="px-3 mt-2">
+                    <button
+                      onClick={() => { setIsMenuOpen(false); navigate('/brands'); }}
+                      className="text-sm text-brand-green hover:text-brand-darkGreen font-medium"
+                    >
+                      모든 브랜드 보기 ({brands.filter(brand => brand.productCount > 0).length}개)
+                    </button>
+                  </div>
+                )}
+                {brands.length > 0 && brands.filter(brand => brand.productCount > 0).length === 0 && (
+                  <div className="px-3 mt-2">
+                    <p className="text-sm text-gray-500 text-center py-2">상품이 있는 브랜드가 없습니다.</p>
+                  </div>
+                )}
+              </div>
+
               {!isAuthed ? (
                 <Link to="/login" onClick={() => setIsMenuOpen(false)} className="block px-3 py-2 text-gray-700 hover:text-green-600">로그인</Link>
               ) : (

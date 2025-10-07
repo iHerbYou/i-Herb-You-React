@@ -40,8 +40,6 @@ const mockReviews: ReviewItem[] = [
   { id: 3, rating: 3, author: 'user90@example.com', createdAt: '2025-09-05', text: '무난합니다.' },
 ];
 
-
-type BackendImage = { url: string; isPrimary: boolean };
 type BackendVariant = ProductDetailDto['variants'][number];
 type BackendProduct = ProductDetailDto;
 
@@ -69,46 +67,9 @@ const ProductDetail: React.FC = () => {
   React.useEffect(() => {
     // Reset selectedVariantId when changing products
     setSelectedVariantId(null);
+    setDetail(undefined);
     
-    const legacy: LegacyProduct | undefined = allProducts.find(p => String(p.id) === id);
-    if (legacy) {
-      const img: BackendImage = { url: legacy.image, isPrimary: true };
-      const variant: BackendVariant = {
-        id: legacy.id,
-        variantName: '기본 옵션',
-        listPrice: legacy.price,
-        salePrice: legacy.price,
-        stock: (legacy.reviewCount ?? 0) % 12 + 1,
-        soldOut: false,
-        upcCode: `880${legacy.id?.toString().padStart(6, '0')}`,
-      } as BackendVariant;
-      const detailData = {
-        id: legacy.id,
-        name: legacy.name,
-        brandId: 0,
-        brandName: legacy.name.split(' ')[0] || 'iHerbYou',
-        categories: [legacy.category],
-        avgRating: legacy.rating ?? 0,
-        reviewCount: legacy.reviewCount ?? 0,
-        code: `PD-${legacy.id.toString().padStart(5, '0')}`,
-        expirationDate: Date.now() + 1000 * 60 * 60 * 24 * 450,
-        saleStartDate: '2025-01-01',
-        images: [img],
-        variants: [variant],
-        description: '엄선된 성분으로 구성된 건강 보조 제품입니다. 균형 잡힌 영양 공급에 도움을 줄 수 있습니다.',
-        instruction: '하루 1~2회, 1회 1정 식후 섭취를 권장합니다.',
-        ingredients: '비타민C, 비오틴, 히알루론산 등',
-        cautions: '특이 체질, 알레르기 체질인 경우 성분을 확인하세요.',
-        disclaimer: '본 정보는 의약품이 아닌 건강기능식품 관련 안내입니다.',
-        nutritionFacts: '1회(1정)당 비타민C 1000mg 외',
-        pillSize: '10x5x5mm',
-      };
-      setDetail(detailData);
-      // Auto-select first variant
-      setSelectedVariantId(variant.id);
-    }
-    
-    // Then fetch from backend and replace
+    // Fetch from backend API only
     const numId = Number(id);
     
     if (!Number.isNaN(numId)) {
@@ -127,12 +88,12 @@ const ProductDetail: React.FC = () => {
         })
         .catch((error) => {
           console.error('[ProductDetail] API fetch failed:', error);
-          // keep fallback
         });
     }
   }, [id]);
 
   const brandName = detail?.brandName ?? '';
+  const brandId = detail?.brandId;
 
   const images = useMemo(() => {
     if (!detail) return [] as string[];
@@ -333,10 +294,16 @@ const ProductDetail: React.FC = () => {
             <h1 className="text-2xl font-bold text-brand-gray-900 mb-2">{detail.name}</h1>
             <div className="flex items-center gap-2 text-sm text-brand-gray-700 mb-2">
               <span>브랜드:</span>
-              <Link to={`/brands/${encodeURIComponent(brandName.toLowerCase())}`} className="text-brand-pink hover:text-brand-pink/80">{brandName}</Link>
-              <span className="mx-1 text-brand-gray-300">|</span>
-              <span>제조사:</span>
-              <Link to={`/brands/${encodeURIComponent(brandName.toLowerCase())}`} className="text-brand-pink hover:text-brand-pink/80">{brandName}</Link>
+              {brandId ? (
+                <Link 
+                  to={`/brands/${brandId}`}
+                  className="text-brand-pink hover:text-brand-pink/80"
+                >
+                  {brandName}
+                </Link>
+              ) : (
+                <span className="text-brand-gray-900">{brandName}</span>
+              )}
             </div>
 
             <div className="flex items-center gap-3 mb-2">
