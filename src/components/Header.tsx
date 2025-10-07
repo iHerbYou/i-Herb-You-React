@@ -192,7 +192,10 @@ const Header: React.FC = () => {
             </button>
             {isAuthed && (
               <div className="relative group">
-                <button className="bg-brand-green text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-brand-darkGreen">
+                <button 
+                  onClick={() => navigate('/account')}
+                  className="bg-brand-green text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-brand-darkGreen"
+                >
                   마이페이지
                 </button>
                 <div className="absolute top-full right-0 mt-2 w-52 bg-white shadow-lg rounded-md border z-50 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200">
@@ -227,13 +230,24 @@ const Header: React.FC = () => {
         {isMenuOpen && (
           <div className="lg:hidden">
             <div className="px-2 pt-2 pb-3 space-y-1 sm:px-3 bg-gray-50">
-              <a href="#" className="block px-3 py-2 text-gray-700 hover:text-green-600">영양제</a>
-              <a href="#" className="block px-3 py-2 text-gray-700 hover:text-green-600">스포츠</a>
-              <a href="#" className="block px-3 py-2 text-gray-700 hover:text-green-600">뷰티</a>
+              {catalog.map((top: TopCategory) => (
+                <button
+                  key={top.id}
+                  onClick={() => { setIsMenuOpen(false); navigate(`/c/${top.id}`); }}
+                  className="block w-full text-left px-3 py-2 text-gray-700 hover:text-green-600"
+                >
+                  {top.name}
+                </button>
+              ))}
               {!isAuthed ? (
                 <Link to="/login" onClick={() => setIsMenuOpen(false)} className="block px-3 py-2 text-gray-700 hover:text-green-600">로그인</Link>
               ) : (
-                <button onClick={() => { setIsMenuOpen(false); handleLogout(); }} className="block w-full text-left px-3 py-2 text-gray-700 hover:text-green-600">로그아웃</button>
+                <button 
+                  onClick={() => { setIsMenuOpen(false); navigate('/account'); }} 
+                  className="block w-full text-left px-3 py-2 text-brand-green hover:text-brand-darkGreen font-medium"
+                >
+                  마이페이지
+                </button>
               )}
             </div>
           </div>

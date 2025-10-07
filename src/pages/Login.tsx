@@ -6,7 +6,8 @@ const Login: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [errorOpen, setErrorOpen] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string>('');
   const [successOpen, setSuccessOpen] = useState(false);
   const [successMsg, setSuccessMsg] = useState<string>('');
   const navigate = useNavigate();
@@ -35,9 +36,21 @@ const Login: React.FC = () => {
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [successOpen, navigate]);
 
+  // Close error modal with Enter key
+  useEffect(() => {
+    if (!errorOpen) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        setErrorOpen(false);
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [errorOpen]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError(null);
     try {
       setSubmitting(true);
       const res = await authLogin(email, password);
@@ -45,7 +58,8 @@ const Login: React.FC = () => {
       setSuccessOpen(true);
     } catch (err: any) {
       const msg = err instanceof Error ? err.message : '로그인 중 오류가 발생했습니다.';
-      setError(msg);
+      setErrorMsg(msg);
+      setErrorOpen(true);
     } finally {
       setSubmitting(false);
     }
@@ -80,9 +94,6 @@ const Login: React.FC = () => {
               placeholder="••••••••"
             />
           </div>
-          {error && (
-            <div className="text-sm text-red-600">{error}</div>
-          )}
           <button type="submit" disabled={submitting} className={`w-full py-2.5 rounded-md text-sm font-medium transition-colors ${submitting ? 'bg-gray-200 text-gray-400 cursor-not-allowed' : 'bg-brand-pink text-brand-gray-900 hover:bg-brand-pink/80'}`}>로그인</button>
         </form>
 
@@ -149,6 +160,33 @@ const Login: React.FC = () => {
               <button
                 onClick={() => { setSuccessOpen(false); navigate('/'); }}
                 className="px-4 py-2 rounded-md text-sm bg-brand-green text-white hover:bg-brand-darkGreen"
+              >
+                확인
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {/* Error Modal */}
+      {errorOpen && (
+        <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center px-4" role="dialog" aria-modal="true">
+          <div className="bg-white w-full max-w-md rounded-2xl border shadow-lg mx-auto overflow-hidden">
+            <div className="px-6 py-5 border-b flex items-center gap-2">
+              <div className="relative">
+                <div className="w-8 h-8 rounded-full bg-red-500 text-white flex items-center justify-center">
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12"/></svg>
+                </div>
+              </div>
+              <h2 className="text-base font-semibold text-brand-gray-900">로그인 실패</h2>
+            </div>
+            <div className="px-6 py-5 text-sm text-brand-gray-800">
+              <p>{errorMsg}</p>
+            </div>
+            <div className="px-6 py-4 border-t flex justify-end">
+              <button
+                onClick={() => setErrorOpen(false)}
+                className="px-4 py-2 rounded-md text-sm bg-brand-primary text-white hover:bg-brand-gray-600"
               >
                 확인
               </button>
