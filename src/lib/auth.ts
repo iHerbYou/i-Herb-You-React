@@ -82,3 +82,29 @@ export async function logout(): Promise<void> {
   clearRefreshTokenCookie();
   dispatchAuthChangeEvent();
 }
+
+export type PasswordResetRequestResponse = {
+  message: string;
+};
+
+export type PasswordResetConfirmResponse = {
+  message: string;
+};
+
+export async function requestPasswordReset(email: string): Promise<PasswordResetRequestResponse> {
+  const res = await post<PasswordResetRequestResponse>(
+    '/api/users/password-reset-request',
+    { email },
+    { credentials: 'include', auth: false }
+  );
+  return res;
+}
+
+export async function confirmPasswordReset(token: string, newPassword: string): Promise<PasswordResetConfirmResponse> {
+  const res = await post<PasswordResetConfirmResponse>(
+    `/api/users/password-reset-confirm?token=${encodeURIComponent(token)}`,
+    { newPassword },
+    { credentials: 'include', auth: false }
+  );
+  return res;
+}
