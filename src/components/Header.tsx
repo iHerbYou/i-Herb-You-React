@@ -1,13 +1,23 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { getCategoryTreeSync, getCategoryTree } from '../lib/catalog';
 import type { TopCategory, MidCategory } from '../data/categories';
 import { logout as authLogout } from '../lib/auth';
+import { getSuggestions, type SuggestionResponse } from '../lib/search';
+import { getSearchHistory, addSearchHistory, removeSearchHistory, type SearchHistoryItem } from '../lib/searchHistory';
 
 const Header: React.FC = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [showTopBanner, setShowTopBanner] = useState(true);
   const [catalog, setCatalog] = useState<TopCategory[]>(() => getCategoryTreeSync());
+  
+  // 검색 관련 state
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchFocused, setSearchFocused] = useState(false);
+  const [suggestions, setSuggestions] = useState<SuggestionResponse | null>(null);
+  const [searchHistory, setSearchHistory] = useState<SearchHistoryItem[]>([]);
+  const searchTimeoutRef = useRef<number | null>(null);
+  const searchRef = useRef<HTMLDivElement>(null);
   
   const hasAuthCookie = () => {
     try {
@@ -40,6 +50,9 @@ const Header: React.FC = () => {
     } catch {
       // ignore storage errors
     }
+
+    // 검색 히스토리 로드
+    setSearchHistory(getSearchHistory());
   }, []);
 
   useEffect(() => {
@@ -93,6 +106,79 @@ const Header: React.FC = () => {
     setLogoutMsg('로그아웃이 완료되었습니다.');
     setLogoutSuccessOpen(true);
   };
+
+  // 검색 관련 함수
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setSearchQuery(value);
+
+    // 자동완성 요청 (디바운스)
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+    }
+
+    if (value.trim().length >= 2) {
+      searchTimeoutRef.current = window.setTimeout(() => {
+        getSuggestions(value.trim())
+          .then(setSuggestions)
+          .catch(() => setSuggestions(null));
+      }, 300);
+    } else {
+      setSuggestions(null);
+    }
+  };
+
+  const handleSearchSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (searchQuery.trim()) {
+      addSearchHistory(searchQuery.trim());
+      setSearchHistory(getSearchHistory());
+      navigate(`/search?query=${encodeURIComponent(searchQuery.trim())}`);
+      setSearchFocused(false);
+      setSuggestions(null);
+      setSearchQuery('');
+    }
+  };
+
+  const handleSuggestionClick = (type: 'category' | 'product', id: number) => {
+    if (type === 'category') {
+      addSearchHistory(searchQuery.trim());
+      setSearchHistory(getSearchHistory());
+      navigate(`/search?query=${encodeURIComponent(searchQuery.trim())}`);
+    } else {
+      navigate(`/p/${id}`);
+    }
+    setSearchFocused(false);
+    setSuggestions(null);
+    setSearchQuery('');
+  };
+
+  const handleHistoryClick = (query: string) => {
+    setSearchQuery(query);
+    addSearchHistory(query);
+    setSearchHistory(getSearchHistory());
+    navigate(`/search?query=${encodeURIComponent(query)}`);
+    setSearchFocused(false);
+    setSuggestions(null);
+  };
+
+  const handleHistoryRemove = (query: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    removeSearchHistory(query);
+    setSearchHistory(getSearchHistory());
+  };
+
+  // 검색창 외부 클릭 시 닫기
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (searchRef.current && !searchRef.current.contains(event.target as Node)) {
+        setSearchFocused(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   return (
     <>
@@ -163,15 +249,97 @@ const Header: React.FC = () => {
 
           {/* Search Bar */}
           <div className="hidden md:flex items-center mx-4">
-            <div className="relative">
-              <svg className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-4.35-4.35M10.5 18a7.5 7.5 0 110-15 7.5 7.5 0 010 15z" />
-              </svg>
-              <input
-                type="text"
-                placeholder="검색어를 입력하세요"
-                className="w-64 lg:w-80 border border-gray-300 rounded-full pl-9 pr-3 py-2 text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-brand-pink"
-              />
+            <div className="relative" ref={searchRef}>
+              <form onSubmit={handleSearchSubmit}>
+                <svg className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-4.35-4.35M10.5 18a7.5 7.5 0 110-15 7.5 7.5 0 010 15z" />
+                </svg>
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={handleSearchChange}
+                  onFocus={() => setSearchFocused(true)}
+                  placeholder="검색어를 입력하세요"
+                  className="w-64 lg:w-80 border border-gray-300 rounded-full pl-9 pr-3 py-2 text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-brand-pink"
+                />
+              </form>
+
+              {/* 드롭다운 (자동완성 또는 최근 검색어) */}
+              {searchFocused && (
+                <div className="absolute top-full left-0 right-0 mt-2 bg-white border border-gray-200 rounded-lg shadow-lg z-50 max-h-96 overflow-y-auto">
+                  {/* 자동완성 결과가 있을 때 */}
+                  {suggestions && (suggestions.categories.length > 0 || suggestions.products.length > 0) ? (
+                    <>
+                      {/* 카테고리 섹션 */}
+                      {suggestions.categories.length > 0 && (
+                        <div className="p-3 border-b">
+                          <h3 className="text-xs font-semibold text-brand-gray-600 mb-2">카테고리</h3>
+                          <ul className="space-y-1">
+                            {suggestions.categories.map((cat) => (
+                              <li key={cat.id}>
+                                <button
+                                  onClick={() => handleSuggestionClick('category', cat.id)}
+                                  className="w-full text-left px-2 py-1.5 text-sm hover:bg-brand-gray-50 rounded transition-colors"
+                                >
+                                  <span className="text-brand-gray-700">{cat.path}</span>
+                                </button>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+
+                      {/* 상품 섹션 */}
+                      {suggestions.products.length > 0 && (
+                        <div className="p-3">
+                          <h3 className="text-xs font-semibold text-brand-gray-600 mb-2">상품</h3>
+                          <ul className="space-y-1">
+                            {suggestions.products.map((product) => (
+                              <li key={product.id}>
+                                <button
+                                  onClick={() => handleSuggestionClick('product', product.id)}
+                                  className="w-full text-left px-2 py-1.5 text-sm hover:bg-brand-gray-50 rounded transition-colors"
+                                >
+                                  <div className="text-brand-gray-900">{product.name}</div>
+                                  <div className="text-xs text-brand-gray-500">{product.brandName}</div>
+                                </button>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    /* 최근 검색어 표시 */
+                    searchHistory.length > 0 && (
+                      <div className="p-3">
+                        <h3 className="text-xs font-semibold text-brand-gray-600 mb-2">최근 검색어</h3>
+                        <ul className="space-y-1">
+                          {searchHistory.map((item) => (
+                            <li key={item.timestamp}>
+                              <button
+                                onClick={() => handleHistoryClick(item.query)}
+                                className="w-full text-left px-2 py-1.5 text-sm hover:bg-brand-gray-50 rounded transition-colors flex items-center justify-between group"
+                              >
+                                <span className="text-brand-gray-900">{item.query}</span>
+                                <button
+                                  onClick={(e) => handleHistoryRemove(item.query, e)}
+                                  className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-gray-200 rounded"
+                                  aria-label="검색어 삭제"
+                                >
+                                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                  </svg>
+                                </button>
+                              </button>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )
+                  )}
+                </div>
+              )}
             </div>
           </div>
 

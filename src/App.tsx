@@ -13,6 +13,7 @@ import CategoryList from './pages/CategoryList';
 import ProductDetail from './pages/ProductDetail';
 import ProductQnA from './pages/ProductQnA';
 import ProductReviews from './pages/ProductReviews';
+import SearchResults from './pages/SearchResults';
 import Wishlist from './pages/Wishlist';
 import SharedWishlist from './pages/SharedWishlist';
 import Account from './pages/Account';
@@ -32,6 +33,8 @@ function App() {
             <main>
               <Routes>
                 <Route path="/" element={<Home />} />
+                <Route path="/search" element={<SearchResults />} />
+                <Route path="/search/*" element={<SearchResults />} />
                 <Route path="/c/:topId" element={<CategoryList />} />
                 <Route path="/c/:topId/:midId" element={<CategoryList />} />
                 <Route path="/c/:topId/:midId/:subId" element={<CategoryList />} />
