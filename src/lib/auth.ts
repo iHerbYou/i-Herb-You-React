@@ -114,7 +114,6 @@ export type EmailVerificationResponse = {
 };
 
 export async function verifyEmail(token: string): Promise<EmailVerificationResponse> {
-  const { get } = await import('./api');
   const res = await get<EmailVerificationResponse>(
     `/api/users/verify-email?token=${encodeURIComponent(token)}`,
     { credentials: 'include', auth: false }
