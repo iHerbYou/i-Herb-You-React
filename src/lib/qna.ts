@@ -71,7 +71,6 @@ export async function fetchQuestions(
     const result = await get<PageResponse<QnaQuestionProduct>>(url, { auth: false });
     return result;
   } catch (error) {
-    console.error('[QnA] Failed to fetch questions:', error);
     throw error;
   }
 }

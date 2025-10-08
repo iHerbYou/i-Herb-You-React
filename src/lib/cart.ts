@@ -80,12 +80,18 @@ export function clearGuestToken(): void {
 export async function getCart(): Promise<CartResponseDTO> {
   const headers: Record<string, string> = {};
   const guestToken = getGuestToken();
+  
+  
+  // 게스트 토큰이 있으면 헤더에 추가
   if (guestToken) {
     headers['X-Guest-Token'] = guestToken;
   }
 
+  // 인증 토큰이 있으면 auth: true, 없으면 auth: false
+  const hasAuthToken = typeof document !== 'undefined' && /(?:^|; )ihy_access_token=/.test(document.cookie);
+
   const response = await get<CartResponseDTO>('/api/cart', { 
-    auth: false,
+    auth: hasAuthToken,  // 인증 상태에 따라 자동 설정
     headers 
   });
 
@@ -109,6 +115,7 @@ export async function addToCart(productVariantId: number, qty: number): Promise<
     qty
   };
 
+
   const response = await post<CartMessageResponseDTO>(
     '/api/cart/items',
     request,
@@ -117,6 +124,7 @@ export async function addToCart(productVariantId: number, qty: number): Promise<
       headers 
     }
   );
+
 
   // 게스트 토큰이 응답에 포함되어 있으면 저장
   if (response.guestToken) {
@@ -220,9 +228,12 @@ export async function deleteSelectedCartProducts(cartProductIds: number[]): Prom
 export async function mergeGuestCart(): Promise<void> {
   const headers: Record<string, string> = {};
   const guestToken = getGuestToken();
+  
+  
   if (guestToken) {
     headers['X-Guest-Token'] = guestToken;
   }
+
 
   await post(
     '/api/cart/merge',
@@ -232,4 +243,5 @@ export async function mergeGuestCart(): Promise<void> {
       headers 
     }
   );
+  
 }

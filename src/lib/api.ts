@@ -149,6 +149,21 @@ export async function api<T = unknown>(
   }
 
   if (!res.ok) {
+    // /api/users/me에서 401 에러 발생 시 로그인 페이지로 리다이렉트
+    if (res.status === 401 && path.includes('/api/users/me')) {
+      // 인증 데이터 정리
+      clearAuthTokenCookie();
+      clearRefreshTokenCookie();
+      try {
+        if (typeof window !== 'undefined') {
+          window.sessionStorage.removeItem('auth');
+          window.dispatchEvent(new Event('auth:change'));
+          // 로그인 페이지로 리다이렉트
+          window.location.href = '/login';
+        }
+      } catch {}
+    }
+    
     const text = await res.text().catch(() => '');
     let errorMessage = res.statusText;
     

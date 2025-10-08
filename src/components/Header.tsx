@@ -35,8 +35,11 @@ const Header: React.FC = () => {
   };
   const [isAuthed, setIsAuthed] = useState<boolean>(() => {
     try {
-      const hasSession = typeof window !== 'undefined' && !!window.sessionStorage.getItem('auth');
-      return hasSession || hasAuthCookie();
+      if (typeof window === 'undefined') return false;
+      const hasSession = !!window.sessionStorage.getItem('auth');
+      const hasCookie = hasAuthCookie();
+      const result = hasSession || hasCookie;
+      return result;
     } catch {
       return false;
     }

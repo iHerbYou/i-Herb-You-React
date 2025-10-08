@@ -76,6 +76,19 @@ export async function logout(): Promise<void> {
   try {
     if (typeof window !== 'undefined') {
       window.sessionStorage.removeItem('auth');
+      window.sessionStorage.clear(); // 모든 세션 데이터 정리
+    }
+  } catch {}
+  clearAuthTokenCookie();
+  clearRefreshTokenCookie();
+  dispatchAuthChangeEvent();
+}
+
+// 디버깅/테스트용: 모든 인증 데이터 강제 정리
+export function clearAllAuthData(): void {
+  try {
+    if (typeof window !== 'undefined') {
+      window.sessionStorage.clear();
     }
   } catch {}
   clearAuthTokenCookie();

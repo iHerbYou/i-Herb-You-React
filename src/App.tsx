@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import Header from './components/Header';
 import Footer from './components/Footer';
 import Home from './pages/Home';
@@ -24,8 +25,30 @@ import { ToastProvider } from './contexts/ToastContext';
 import { CartProvider } from './contexts/CartContext';
 import ScrollToTop from './components/ScrollToTop';
 import { GuestOnly, RequireAuth } from './components/RouteGuards';
+import { clearAuthTokenCookie, clearRefreshTokenCookie } from './lib/api';
 
 function App() {
+  // 앱 시작 시 유효하지 않은 인증 데이터 정리
+  useEffect(() => {
+    try {
+      const hasSession = typeof window !== 'undefined' && !!window.sessionStorage.getItem('auth');
+      const hasAuthCookie = typeof document !== 'undefined' && /(?:^|; )ihy_access_token=/.test(document.cookie);
+      
+      // sessionStorage는 있는데 쿠키가 없는 경우 (만료된 세션)
+      if (hasSession && !hasAuthCookie) {
+        window.sessionStorage.removeItem('auth');
+        window.dispatchEvent(new Event('auth:change'));
+      }
+      
+      // 쿠키는 있는데 sessionStorage가 없는 경우 (비정상 상태)
+      if (!hasSession && hasAuthCookie) {
+        clearAuthTokenCookie();
+        clearRefreshTokenCookie();
+        window.dispatchEvent(new Event('auth:change'));
+      }
+    } catch {}
+  }, []);
+
   return (
     <div className="min-h-screen bg-white">
       <BrowserRouter>

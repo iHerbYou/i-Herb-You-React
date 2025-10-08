@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { login as authLogin } from '../lib/auth';
+import { getGuestToken, clearGuestToken } from '../lib/cart';
+import { useCart } from '../contexts/CartContext';
 
 const Login: React.FC = () => {
   const [email, setEmail] = useState('');
@@ -11,6 +13,7 @@ const Login: React.FC = () => {
   const [successOpen, setSuccessOpen] = useState(false);
   const [successMsg, setSuccessMsg] = useState<string>('');
   const navigate = useNavigate();
+  const { mergeGuestCart, refreshCart } = useCart();
 
   useEffect(() => {
     try {
@@ -53,7 +56,34 @@ const Login: React.FC = () => {
     e.preventDefault();
     try {
       setSubmitting(true);
+      
+      // 1. 로그인 전에 게스트 토큰 확인
+      const guestToken = getGuestToken();
+      
+      // 2. 로그인
       const res = await authLogin(email, password);
+      
+      // 3. 게스트 토큰이 있으면 장바구니 병합
+      if (guestToken) {
+        console.log('[Login] Attempting to merge guest cart...');
+        try {
+          await mergeGuestCart();
+          console.log('[Login] Guest cart merged successfully');
+        } catch (mergeError) {
+          console.error('[Login] Failed to merge guest cart:', mergeError);
+          // 병합 실패해도 로그인은 성공으로 처리
+        }
+      } else {
+      }
+      
+      // 4. 장바구니 재조회 (병합된 결과 가져오기)
+      await refreshCart();
+      
+      // 5. 장바구니 재조회 후 게스트 토큰 삭제
+      if (guestToken) {
+        clearGuestToken();
+      }
+      
       setSuccessMsg(res.message || '로그인에 성공했습니다.');
       setSuccessOpen(true);
     } catch (err: any) {
