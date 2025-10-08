@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useCart } from '../contexts/CartContext';
 import ConfirmModal from '../components/ConfirmModal';
 import { deleteSelectedCartProducts } from '../lib/cart';
@@ -19,6 +19,7 @@ const Cart: React.FC = () => {
   } = useCart();
 
   const [deletingItems, setDeletingItems] = useState<number[]>([]);
+  const navigate = useNavigate();
   
   // 모달 상태
   const [confirmModal, setConfirmModal] = useState<{
@@ -348,6 +349,7 @@ const Cart: React.FC = () => {
                   </div>
 
                   <button
+                    onClick={() => navigate('/order')}
                     disabled={selectedCount === 0}
                     className={`w-full py-3 rounded-md font-semibold transition-colors ${
                       selectedCount === 0

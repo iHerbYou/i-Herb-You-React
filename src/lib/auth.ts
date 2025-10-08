@@ -42,6 +42,50 @@ export function isLoggedIn(): boolean {
   }
 }
 
+export type AuthInfo = {
+  userId: number;
+  email: string;
+  nickname: string;
+  role: string;
+};
+
+export function getAuth(): AuthInfo | null {
+  try {
+    if (typeof window === 'undefined') return null;
+    const raw = window.sessionStorage.getItem('auth');
+    if (!raw) return null;
+    const data = JSON.parse(raw);
+    return {
+      userId: data.userId || data.id || 1,
+      email: data.email || '',
+      nickname: data.nickname || data.name || '',
+      role: data.role || 'user',
+    };
+  } catch {
+    return null;
+  }
+}
+
+// 사용자 정보 응답 타입
+export type UserInfoResponseDto = {
+  id: number;
+  email: string;
+  name: string;
+  phoneNumber: string;
+  role: string;
+  status: string;
+  createdAt: string;
+};
+
+// 현재 로그인한 사용자 정보 조회
+export async function getCurrentUser(): Promise<UserInfoResponseDto> {
+  const res = await get<UserInfoResponseDto>(
+    '/api/users/me',
+    { credentials: 'include', auth: true }
+  );
+  return res;
+}
+
 export async function signup(payload: SignupPayload): Promise<SignupResponse> {
   const res = await post<SignupResponse>('/api/users/signup', payload, { credentials: 'include', auth: false });
   try {
@@ -58,11 +102,35 @@ export async function login(email: string, password: string): Promise<LoginRespo
   if (res.refreshToken) {
     setRefreshTokenCookie(res.refreshToken, res.refreshTokenExpiresIn);
   }
+  
+  // 로그인 후 사용자 정보 조회하여 sessionStorage에 저장
   try {
     if (typeof window !== 'undefined') {
-      window.sessionStorage.setItem('auth', JSON.stringify({ nickname: res.name || email, role: 'user' }));
+      // 먼저 기본 정보 저장
+      window.sessionStorage.setItem('auth', JSON.stringify({ 
+        nickname: res.name || email, 
+        email: email,
+        role: 'user' 
+      }));
+      
+      // 사용자 상세 정보 조회 후 업데이트
+      getCurrentUser().then(userInfo => {
+        window.sessionStorage.setItem('auth', JSON.stringify({ 
+          id: userInfo.id,
+          userId: userInfo.id,
+          nickname: userInfo.name,
+          name: userInfo.name,
+          email: userInfo.email,
+          phoneNumber: userInfo.phoneNumber,
+          role: userInfo.role,
+          status: userInfo.status
+        }));
+      }).catch(() => {
+        // 실패해도 기본 정보는 이미 저장되어 있음
+      });
     }
   } catch {}
+  
   dispatchAuthChangeEvent();
   return res;
 }

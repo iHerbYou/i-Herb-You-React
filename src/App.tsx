@@ -18,6 +18,7 @@ import SearchResults from './pages/SearchResults';
 import BrandProducts from './pages/BrandProducts';
 import AllBrands from './pages/AllBrands';
 import Cart from './pages/Cart';
+import Order from './pages/Order';
 import Wishlist from './pages/Wishlist';
 import SharedWishlist from './pages/SharedWishlist';
 import Account from './pages/Account';
@@ -64,6 +65,7 @@ function App() {
                 <Route path="/brands" element={<AllBrands />} />
                 <Route path="/brands/:brandId" element={<BrandProducts />} />
                 <Route path="/cart" element={<Cart />} />
+                <Route path="/order" element={<Order />} />
                 <Route path="/c/:topId" element={<CategoryList />} />
                 <Route path="/c/:topId/:midId" element={<CategoryList />} />
                 <Route path="/c/:topId/:midId/:subId" element={<CategoryList />} />

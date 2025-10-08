@@ -76,22 +76,32 @@ export function clearGuestToken(): void {
   localStorage.removeItem('ihy_guest_token');
 }
 
-// 장바구니 API 함수들
-export async function getCart(): Promise<CartResponseDTO> {
+// 인증 상태 확인 헬퍼 함수
+function isAuthenticated(): boolean {
+  return typeof document !== 'undefined' && /(?:^|; )ihy_access_token=/.test(document.cookie);
+}
+
+// 장바구니 요청 헤더 생성 헬퍼 함수
+function getCartHeaders(): { headers: Record<string, string>; auth: boolean } {
   const headers: Record<string, string> = {};
   const guestToken = getGuestToken();
   
-  
-  // 게스트 토큰이 있으면 헤더에 추가
   if (guestToken) {
     headers['X-Guest-Token'] = guestToken;
   }
 
-  // 인증 토큰이 있으면 auth: true, 없으면 auth: false
-  const hasAuthToken = typeof document !== 'undefined' && /(?:^|; )ihy_access_token=/.test(document.cookie);
+  return {
+    headers,
+    auth: isAuthenticated()
+  };
+}
+
+// 장바구니 API 함수들
+export async function getCart(): Promise<CartResponseDTO> {
+  const { headers, auth } = getCartHeaders();
 
   const response = await get<CartResponseDTO>('/api/cart', { 
-    auth: hasAuthToken,  // 인증 상태에 따라 자동 설정
+    auth,
     headers 
   });
 
@@ -104,27 +114,21 @@ export async function getCart(): Promise<CartResponseDTO> {
 }
 
 export async function addToCart(productVariantId: number, qty: number): Promise<CartMessageResponseDTO> {
-  const headers: Record<string, string> = {};
-  const guestToken = getGuestToken();
-  if (guestToken) {
-    headers['X-Guest-Token'] = guestToken;
-  }
+  const { headers, auth } = getCartHeaders();
 
   const request: AddToCartRequestDTO = {
     productVariantId,
     qty
   };
 
-
   const response = await post<CartMessageResponseDTO>(
     '/api/cart/items',
     request,
     { 
-      auth: false,
+      auth,
       headers 
     }
   );
-
 
   // 게스트 토큰이 응답에 포함되어 있으면 저장
   if (response.guestToken) {
@@ -135,91 +139,68 @@ export async function addToCart(productVariantId: number, qty: number): Promise<
 }
 
 export async function updateQuantity(cartProductId: number, qty: number): Promise<void> {
-  const headers: Record<string, string> = {};
-  const guestToken = getGuestToken();
-  if (guestToken) {
-    headers['X-Guest-Token'] = guestToken;
-  }
-
+  const { headers, auth } = getCartHeaders();
   const request: UpdateQtyRequestDTO = { qty };
 
   await patch(
     `/api/cart/items/${cartProductId}/quantity`,
     request,
     { 
-      auth: false,
+      auth,
       headers 
     }
   );
 }
 
 export async function updateSelection(cartProductId: number, isSelected: boolean): Promise<void> {
-  const headers: Record<string, string> = {};
-  const guestToken = getGuestToken();
-  if (guestToken) {
-    headers['X-Guest-Token'] = guestToken;
-  }
-
+  const { headers, auth } = getCartHeaders();
   const request: UpdateSelectionRequestDTO = { isSelected };
 
   await patch(
     `/api/cart/items/${cartProductId}/select`,
     request,
     { 
-      auth: false,
+      auth,
       headers 
     }
   );
 }
 
 export async function updateAllSelection(isSelected: boolean): Promise<void> {
-  const headers: Record<string, string> = {};
-  const guestToken = getGuestToken();
-  if (guestToken) {
-    headers['X-Guest-Token'] = guestToken;
-  }
-
+  const { headers, auth } = getCartHeaders();
   const request: UpdateSelectionRequestDTO = { isSelected };
 
   await patch(
     '/api/cart/items/select-all',
     request,
     { 
-      auth: false,
+      auth,
       headers 
     }
   );
 }
 
 export async function deleteCartProduct(cartProductId: number): Promise<void> {
-  const headers: Record<string, string> = {};
-  const guestToken = getGuestToken();
-  if (guestToken) {
-    headers['X-Guest-Token'] = guestToken;
-  }
+  const { headers, auth } = getCartHeaders();
 
   await del(
     `/api/cart/items/${cartProductId}`,
     undefined,  // body
     { 
-      auth: false,
+      auth,
       headers 
     }
   );
 }
 
 export async function deleteSelectedCartProducts(cartProductIds: number[]): Promise<void> {
-  const headers: Record<string, string> = {};
-  const guestToken = getGuestToken();
-  if (guestToken) {
-    headers['X-Guest-Token'] = guestToken;
-  }
+  const { headers, auth } = getCartHeaders();
 
   await post(
     '/api/cart/items/delete-selected',
     { cartProductIds },  // body
     { 
-      auth: false,
+      auth,
       headers
     }
   );
