@@ -100,6 +100,14 @@ export type PasswordResetRequestResponse = {
   message: string;
 };
 
+export type WithdrawRequestDto = {
+  password: string;
+};
+
+export type WithdrawResponseDto = {
+  message: string;
+};
+
 export type PasswordResetConfirmResponse = {
   message: string;
 };
@@ -140,5 +148,27 @@ export async function resendVerificationEmail(email: string): Promise<EmailVerif
     undefined,
     { credentials: 'include', auth: false }
   );
+  return res;
+}
+
+export async function withdraw(password: string): Promise<WithdrawResponseDto> {
+  
+  const res = await post<WithdrawResponseDto>(
+    '/api/users/withdraw',
+    { password },
+    { credentials: 'include', auth: true }
+  );
+  
+  // 회원탈퇴 성공 시 인증 데이터 정리
+  try {
+    if (typeof window !== 'undefined') {
+      window.sessionStorage.removeItem('auth');
+      window.sessionStorage.clear();
+    }
+  } catch {}
+  clearAuthTokenCookie();
+  clearRefreshTokenCookie();
+  dispatchAuthChangeEvent();
+  
   return res;
 }

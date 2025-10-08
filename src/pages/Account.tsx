@@ -3,6 +3,7 @@ import { get, put } from '../lib/api';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '../contexts/ToastContext';
 import MyPageNav from '../components/MyPageNav';
+import { withdraw } from '../lib/auth';
 
 type UserInfoResponseDto = {
   id: number;
@@ -35,6 +36,11 @@ const Account: React.FC = () => {
   const [resultOpen, setResultOpen] = useState(false);
   const [resultMsg, setResultMsg] = useState('');
   const [resultOk, setResultOk] = useState<boolean>(false);
+
+  // 회원탈퇴 관련 상태
+  const [withdrawModalOpen, setWithdrawModalOpen] = useState(false);
+  const [withdrawPassword, setWithdrawPassword] = useState('');
+  const [withdrawing, setWithdrawing] = useState(false);
 
   const { showToast } = useToast();
   const navigate = useNavigate();
@@ -127,6 +133,40 @@ const Account: React.FC = () => {
     }
   };
 
+  const handleWithdrawClick = () => {
+    setWithdrawPassword('');
+    setWithdrawModalOpen(true);
+  };
+
+  const handleWithdrawConfirm = async () => {
+    if (!withdrawPassword.trim()) {
+      showToast({ message: '비밀번호를 입력해주세요.' });
+      return;
+    }
+
+    setWithdrawing(true);
+    try {
+      const res = await withdraw(withdrawPassword);
+      setWithdrawModalOpen(false);
+      setResultMsg(res.message || '회원 탈퇴가 완료되었습니다. 그동안 iherbyou를 이용해 주셔서 감사합니다.');
+      setResultOk(true);
+      setResultOpen(true);
+      
+      // 3초 후 홈으로 이동
+      setTimeout(() => {
+        navigate('/');
+      }, 3000);
+    } catch (e: any) {
+      const raw = e instanceof Error ? e.message : String(e);
+      setWithdrawModalOpen(false);
+      setResultMsg(raw || '회원 탈퇴 중 오류가 발생했습니다.');
+      setResultOk(false);
+      setResultOpen(true);
+    } finally {
+      setWithdrawing(false);
+    }
+  };
+
   return (
     <div className="min-h-[calc(100vh-124px)] bg-white">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -178,9 +218,100 @@ const Account: React.FC = () => {
               </form>
               </div>
             </div>
+
+            {/* 회원탈퇴 섹션 */}
+            <div className="lg:col-span-2">
+              <div className="bg-white rounded-2xl shadow-md p-6 border border-red-100">
+                <h2 className="text-lg font-semibold text-brand-gray-900 mb-3">회원 탈퇴</h2>
+                <p className="text-sm text-brand-gray-600 mb-4">
+                  탈퇴 시 다음 서비스를 더 이상 이용하실 수 없습니다:
+                </p>
+                <ul className="text-sm text-brand-gray-600 mb-4 space-y-2">
+                  <li className="flex items-start">
+                    <span className="text-red-500 mr-2">•</span>
+                    <span>주문 내역 및 배송 조회</span>
+                  </li>
+                  <li className="flex items-start">
+                    <span className="text-red-500 mr-2">•</span>
+                    <span>적립금 및 쿠폰 사용</span>
+                  </li>
+                  <li className="flex items-start">
+                    <span className="text-red-500 mr-2">•</span>
+                    <span>위시리스트 및 장바구니 저장</span>
+                  </li>
+                  <li className="flex items-start">
+                    <span className="text-red-500 mr-2">•</span>
+                    <span>상품 리뷰 및 Q&A 작성</span>
+                  </li>
+                  <li className="flex items-start">
+                    <span className="text-red-500 mr-2">•</span>
+                    <span>회원 전용 할인 혜택</span>
+                  </li>
+                </ul>
+                <p className="text-xs text-red-600 mb-4">
+                  ※ 탈퇴한 계정은 복구할 수 없으며, 동일한 이메일로 재가입이 제한될 수 있습니다.
+                </p>
+                <button
+                  onClick={handleWithdrawClick}
+                  className="px-4 py-2 text-sm rounded-md border border-red-500 text-red-600 bg-red-50"
+                >
+                  회원 탈퇴
+                </button>
+              </div>
+            </div>
           </div>
         )}
       </div>
+
+      {/* 회원탈퇴 확인 모달 */}
+      {withdrawModalOpen && (
+        <div className="fixed inset-0 z-50">
+          <div className="absolute inset-0 bg-black/40" onClick={() => setWithdrawModalOpen(false)} />
+          <div 
+            className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[90%] max-w-md bg-white rounded-2xl shadow-lg overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="p-6">
+              <h3 className="text-lg font-semibold text-brand-gray-900 mb-3">회원 탈퇴</h3>
+              <p className="text-sm text-brand-gray-600 mb-4">
+                정말로 탈퇴하시겠습니까? <br /> 탈퇴 시 모든 정보가 삭제되며 복구할 수 없습니다.
+              </p>
+              
+              <div className="mb-6">
+                <label className="block text-sm text-brand-gray-700 mb-2">
+                  비밀번호를 입력하여 본인 확인
+                </label>
+                <input
+                  type="password"
+                  value={withdrawPassword}
+                  onChange={(e) => setWithdrawPassword(e.target.value)}
+                  placeholder="비밀번호 입력"
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-500"
+                  disabled={withdrawing}
+                />
+              </div>
+              
+              <div className="flex items-center justify-end gap-2">
+                <button
+                  onClick={() => setWithdrawModalOpen(false)}
+                  disabled={withdrawing}
+                  className="px-4 py-2 text-sm rounded-md border border-gray-300 text-brand-gray-700 bg-gray-100 disabled:opacity-50"
+                >
+                  취소
+                </button>
+                <button
+                  onClick={handleWithdrawConfirm}
+                  disabled={withdrawing || !withdrawPassword.trim()}
+                  className="px-4 py-2 text-sm rounded-md bg-red-600 text-white hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {withdrawing ? '처리 중...' : '탈퇴하기'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Result Modal */}
       {resultOpen && (
         <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center px-4" role="dialog" aria-modal="true">
@@ -211,7 +342,7 @@ const Account: React.FC = () => {
               <p>{resultMsg}</p>
             </div>
             <div className="px-6 py-4 border-t flex justify-end">
-              <button onClick={()=>setResultOpen(false)} className="px-4 py-2 rounded-md text-sm bg-brand-green text-white hover:bg-brand-darkGreen">확인</button>
+              <button onClick={()=>setResultOpen(false)} className="px-4 py-2 rounded-md text-sm bg-brand-primary text-white hover:bg-brand-darkGreen">확인</button>
             </div>
           </div>
         </div>
