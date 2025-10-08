@@ -1,33 +1,33 @@
 import React from 'react';
 import BannerCarousel from '../components/BannerCarousel';
 import ProductSection from '../components/ProductSection';
-import { products } from '../data/products';
 import { fetchBestsellers, fetchNewProducts, fetchTopRated, type ProductListDto } from '../lib/products';
 import { getCategoryTreeSync } from '../lib/catalog';
 
 const Home: React.FC = () => {
-  const dietProducts = products.filter(product => 
-    product.name.includes('다이어트') || 
-    product.name.includes('쉐이크') || 
-    product.name.includes('수분')
-  );
-
-  // Ensure Bestsellers include some Beauty items while capping at 8
-  const beautyForBest = products.filter(p => p.category === '뷰티').slice(0, 2);
-  const othersForBest = products.filter(p => p.category !== '뷰티').slice(0, 6);
-  const bestSellerProducts = [...beautyForBest, ...othersForBest].slice(0, 8);
-
-  // state for API-backed sections with fallback to existing mock
-  const [bestApi, setBestApi] = React.useState<ProductListDto[] | null>(null);
-  const [newApi, setNewApi] = React.useState<ProductListDto[] | null>(null);
-  const [topApi, setTopApi] = React.useState<ProductListDto[] | null>(null);
+  // API 데이터만 사용
+  const [bestApi, setBestApi] = React.useState<ProductListDto[]>([]);
+  const [newApi, setNewApi] = React.useState<ProductListDto[]>([]);
+  const [topApi, setTopApi] = React.useState<ProductListDto[]>([]);
   const [bestTab, setBestTab] = React.useState<string>('전체');
+  const [loading, setLoading] = React.useState(true);
 
   React.useEffect(() => {
     // initial loads
-    fetchBestsellers({ size: 8 }).then(setBestApi).catch(() => {});
-    fetchNewProducts({ size: 8 }).then(setNewApi).catch(() => {});
-    fetchTopRated({ size: 8 }).then(setTopApi).catch(() => {});
+    Promise.all([
+      fetchBestsellers({ size: 8 }),
+      fetchNewProducts({ size: 8 }),
+      fetchTopRated({ size: 8 })
+    ])
+      .then(([best, newProds, top]) => {
+        setBestApi(best);
+        setNewApi(newProds);
+        setTopApi(top);
+        setLoading(false);
+      })
+      .catch(() => {
+        setLoading(false);
+      });
   }, []);
 
   // Map tab label → categoryId using the current catalog
@@ -40,33 +40,39 @@ const Home: React.FC = () => {
   const handleBestTabChange = (label: string) => {
     setBestTab(label);
     const categoryId = resolveCategoryId(label);
-    fetchBestsellers({ size: 8, categoryId }).then(setBestApi).catch(() => {});
+    fetchBestsellers({ size: 8, categoryId })
+      .then(setBestApi)
+      .catch(() => setBestApi([]));
   };
 
   return (
     <>
       <BannerCarousel />
 
-      <ProductSection
-        title="베스트셀러"
-        subtitle="아이허브유의 Top 인기상품을 만나보세요"
-        products={bestApi ? (bestApi.map(i => ({ id: i.id, name: i.name, price: i.minPrice, category: '기타', image: i.thumbnailUrl, rating: i.avgRating, reviewCount: i.reviewCount })) as any) : bestSellerProducts}
-        categories={['영양제', '스포츠', '뷰티']}
-        activeCategory={bestTab}
-        onCategoryChange={handleBestTabChange}
-      />
+      {!loading && (
+        <>
+          <ProductSection
+            title="베스트셀러"
+            subtitle="아이허브유의 Top 인기상품을 만나보세요"
+            products={bestApi.map(i => ({ id: i.id, name: i.name, price: i.minPrice, category: '기타', image: i.thumbnailUrl, rating: i.avgRating, reviewCount: i.reviewCount, productVariantId: i.productVariantId })) as any}
+            categories={['영양제', '스포츠', '뷰티']}
+            activeCategory={bestTab}
+            onCategoryChange={handleBestTabChange}
+          />
 
-      <ProductSection
-        title="최근 출시된 상품"
-        subtitle="아이허브유의 신상품을 가장 먼저 만나보세요"
-        products={newApi ? (newApi.map(i => ({ id: i.id, name: i.name, price: i.minPrice, category: '기타', image: i.thumbnailUrl, rating: i.avgRating, reviewCount: i.reviewCount })) as any) : dietProducts}
-      />
+          <ProductSection
+            title="최근 출시된 상품"
+            subtitle="아이허브유의 신상품을 가장 먼저 만나보세요"
+            products={newApi.map(i => ({ id: i.id, name: i.name, price: i.minPrice, category: '기타', image: i.thumbnailUrl, rating: i.avgRating, reviewCount: i.reviewCount, productVariantId: i.productVariantId })) as any}
+          />
 
-      <ProductSection
-        title="별점 높은 상품"
-        subtitle="고객 만족도가 높은 인기 제품을 만나보세요"
-        products={topApi ? (topApi.map(i => ({ id: i.id, name: i.name, price: i.minPrice, category: '기타', image: i.thumbnailUrl, rating: i.avgRating, reviewCount: i.reviewCount })) as any) : dietProducts}
-      />
+          <ProductSection
+            title="별점 높은 상품"
+            subtitle="고객 만족도가 높은 인기 제품을 만나보세요"
+            products={topApi.map(i => ({ id: i.id, name: i.name, price: i.minPrice, category: '기타', image: i.thumbnailUrl, rating: i.avgRating, reviewCount: i.reviewCount, productVariantId: i.productVariantId })) as any}
+          />
+        </>
+      )}
 
       <section className="py-16 bg-brand-pinkSoft">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">

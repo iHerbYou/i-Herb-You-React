@@ -46,7 +46,6 @@ export async function getCategoryTree(): Promise<TopCategory[]> {
       const res = await get<CategoryTreeDto[]>('/api/catalog/categories/tree', { auth: false });
       cachedCategories = Array.isArray(res) && res.length ? mapDtoToLocal(res) : localCategories;
     } catch (err) {
-      console.warn('[catalog] Failed to fetch categories, using local fallback:', err);
       cachedCategories = localCategories;
     } finally {
       inFlight = null;

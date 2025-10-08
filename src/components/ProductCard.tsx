@@ -1,20 +1,24 @@
-import React from 'react';
+import React, { useState } from 'react';
 import type { Product } from '../data/products';
 import { useToast } from '../contexts/ToastContext';
 import { apiAddWishlist } from '../lib/wishlist';
 import { useCart } from '../contexts/CartContext';
 import { Link, useNavigate } from 'react-router-dom';
 import { isLoggedIn } from '../lib/auth';
+import AddToCartModal from './AddToCartModal';
 
 interface ProductCardProps {
   product: Product;
-  onAddToCart?: (product: Product) => void;
+  productVariantId?: number; // API 기반 장바구니 추가를 위한 variant ID
 }
 
-const ProductCard: React.FC<ProductCardProps> = ({ product, onAddToCart }) => {
+const ProductCard: React.FC<ProductCardProps> = ({ product, productVariantId }) => {
   const { showToast } = useToast();
   const { addToCart } = useCart();
   const navigate = useNavigate();
+  
+  // 장바구니 모달 상태
+  const [cartModalOpen, setCartModalOpen] = useState(false);
 
   const handleWishlist = async () => {
     if (!isLoggedIn()) {
@@ -30,17 +34,25 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, onAddToCart }) => {
         onAction: () => { window.location.href = '/wishlist'; },
       });
     } catch (err) {
-      console.error('Failed to add to wishlist:', err);
       showToast({ message: '위시리스트 담기에 실패했습니다. 다시 시도해주세요.' });
     }
   };
 
-  const handleAddToCart = () => {
-    if (onAddToCart) {
-      onAddToCart(product);
+  const handleAddToCart = async () => {
+    if (!productVariantId) {
+      showToast({ message: '상품 정보를 불러올 수 없습니다.' });
       return;
     }
-    addToCart(product, 1);
+
+    try {
+      // API 기반 장바구니 추가
+      await addToCart(productVariantId, 1);
+      
+      // 모달 표시
+      setCartModalOpen(true);
+    } catch (error) {
+      showToast({ message: '장바구니에 상품을 추가하는데 실패했습니다.' });
+    }
   };
 
   return (
@@ -70,13 +82,25 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, onAddToCart }) => {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
               </svg>
             </button>
-            <button onClick={(e)=>{ e.preventDefault(); e.stopPropagation(); handleAddToCart(); }} className="w-10 h-10 bg-white rounded-full shadow-md flex items-center justify-center hover:bg-gray-50">
+            <div 
+              onClick={(e)=>{ e.preventDefault(); e.stopPropagation(); handleAddToCart(); }} 
+              className="w-10 h-10 bg-white rounded-full shadow-md flex items-center justify-center hover:bg-gray-50 cursor-pointer"
+              role="button"
+              tabIndex={0}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  handleAddToCart();
+                }
+              }}
+            >
               <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.25 3h1.5l1.5 9.75A2.25 2.25 0 007.5 15.75h7.5a2.25 2.25 0 002.25-1.875l1.125-6.75H6.375" />
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16.5 18.75a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0z" />
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.75 18.75a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0z" />
               </svg>
-            </button>
+            </div>
           </div>
         </div>
       </div>
@@ -123,6 +147,20 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, onAddToCart }) => {
           </div>
         )}
       </div>
+      
+      {/* 장바구니 추가 모달 */}
+      <AddToCartModal
+        isOpen={cartModalOpen}
+        onClose={() => setCartModalOpen(false)}
+        product={{
+          id: product.id,
+          name: product.name,
+          imageUrl: product.image,
+          price: product.price,
+          brandName: product.category
+        }}
+        quantity={1}
+      />
     </Link>
   );
 };

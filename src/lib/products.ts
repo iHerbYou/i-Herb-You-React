@@ -11,6 +11,7 @@ export interface ProductListDto {
   reviewCount: number;
   sales: number;
   soldOut: boolean;
+  productVariantId: number;  // 기본 variant ID
 }
 
 export interface SortStateDto { empty: boolean; sorted: boolean; unsorted: boolean }
@@ -96,7 +97,6 @@ export async function fetchProductList(params: {
     const result = await get<PageResponseDto<ProductListDto>>(url, { auth: false });
     return result;
   } catch (error) {
-    console.error('[Product] Failed to fetch product list:', error);
     throw error;
   }
 }
@@ -108,7 +108,6 @@ export async function fetchProductDetail(id: number): Promise<ProductDetailDto> 
     const result = await get<ProductDetailDto>(url, { auth: false });
     return result;
   } catch (error) {
-    console.error('[Product] Failed to fetch product detail:', error);
     throw error;
   }
 }
@@ -125,7 +124,6 @@ export async function fetchBestsellers(params?: { categoryId?: number; size?: nu
     const result = await get<ProductListDto[]>(url, { auth: false });
     return result;
   } catch (error) {
-    console.error('[Product] Failed to fetch bestsellers:', error);
     throw error;
   }
 }
@@ -140,7 +138,6 @@ export async function fetchNewProducts(params?: { size?: number }): Promise<Prod
     const result = await get<ProductListDto[]>(url, { auth: false });
     return result;
   } catch (error) {
-    console.error('[Product] Failed to fetch new products:', error);
     throw error;
   }
 }
@@ -155,7 +152,6 @@ export async function fetchTopRated(params?: { size?: number }): Promise<Product
     const result = await get<ProductListDto[]>(url, { auth: false });
     return result;
   } catch (error) {
-    console.error('[Product] Failed to fetch top-rated:', error);
     throw error;
   }
 }

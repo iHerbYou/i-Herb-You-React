@@ -82,7 +82,6 @@ const ProductReviewSection: React.FC<ProductReviewSectionProps> = ({ productId, 
       setReviews(response.content);
       setTotalPages(response.totalPages);
     } catch (error) {
-      console.error('Failed to fetch reviews:', error);
       showToast({ message: '리뷰 목록을 불러오는 데 실패했습니다.' });
     } finally {
       setLoading(false);
@@ -98,7 +97,6 @@ const ProductReviewSection: React.FC<ProductReviewSectionProps> = ({ productId, 
         onSummaryLoad(data);
       }
     } catch (error) {
-      console.error('Failed to fetch review summary:', error);
     }
   };
 

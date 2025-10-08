@@ -6,11 +6,15 @@ import { logout as authLogout } from '../lib/auth';
 import { getSuggestions, type SuggestionResponse } from '../lib/search';
 import { getSearchHistory, addSearchHistory, removeSearchHistory, type SearchHistoryItem } from '../lib/searchHistory';
 import { getAllBrands, type BrandResponse } from '../lib/brands';
+import { useCart } from '../contexts/CartContext';
 
 const Header: React.FC = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [showTopBanner, setShowTopBanner] = useState(true);
   const [catalog, setCatalog] = useState<TopCategory[]>(() => getCategoryTreeSync());
+  
+  // 장바구니 컨텍스트
+  const { items: cartItems } = useCart();
   
   // 브랜드 관련 state
   const [brands, setBrands] = useState<BrandResponse[]>([]);
@@ -391,14 +395,18 @@ const Header: React.FC = () => {
             ) : (
               <button onClick={handleLogout} className="text-brand-gray-700 hover:text-brand-pink text-sm font-medium">로그아웃</button>
             )}
-            <button aria-label="장바구니" className="relative text-brand-gray-700 hover:text-brand-pink">
+            <Link to="/cart" aria-label="장바구니" className="relative text-brand-gray-700 hover:text-brand-pink">
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.25 3h1.5l1.5 9.75A2.25 2.25 0 007.5 15.75h7.5a2.25 2.25 0 002.25-1.875l1.125-6.75H6.375" />
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16.5 18.75a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0z" />
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.75 18.75a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0z" />
               </svg>
-              <span className="absolute -top-1 -right-1 bg-brand-red text-white text-[10px] min-w-[16px] h-[16px] px-1 rounded-full flex items-center justify-center border border-white">0</span>
-            </button>
+              {cartItems.length > 0 && (
+                <span className="absolute -top-1 -right-1 bg-brand-red text-white text-[10px] min-w-[16px] h-[16px] px-1 rounded-full flex items-center justify-center border border-white">
+                  {cartItems.length > 99 ? '99+' : cartItems.length}
+                </span>
+              )}
+            </Link>
             {isAuthed && (
               <div className="relative group">
                 <button 

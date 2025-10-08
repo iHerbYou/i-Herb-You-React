@@ -1,8 +1,8 @@
 import React, { useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { products as allProducts, type Product as LegacyProduct } from '../data/products';
 import { useCart } from '../contexts/CartContext';
 import { useToast } from '../contexts/ToastContext';
+import AddToCartModal from '../components/AddToCartModal';
 import { getCategoryTreeSync } from '../lib/catalog';
 import { fetchProductDetail, type ProductDetailDto } from '../lib/products';
 import { apiAddWishlist } from '../lib/wishlist';
@@ -60,6 +60,13 @@ const ProductDetail: React.FC = () => {
   const [reviews, setReviews] = useState<ReviewItem[]>(mockReviews);
   const [writeOpen, setWriteOpen] = useState(false);
   const [cartModalOpen, setCartModalOpen] = useState(false);
+  const [addedProduct, setAddedProduct] = useState<{
+    id: number;
+    name: string;
+    imageUrl: string;
+    price: number;
+    brandName: string;
+  } | null>(null);
   const [reportOpen, setReportOpen] = useState<null | { reviewId: number }>(null);
   const [reviewSummary, setReviewSummary] = useState<{ average: number; totalCount: number } | null>(null);
 
@@ -86,8 +93,7 @@ const ProductDetail: React.FC = () => {
             setSelectedVariantId(normalized.variants[0].id);
           }
         })
-        .catch((error) => {
-          console.error('[ProductDetail] API fetch failed:', error);
+        .catch(() => {
         });
     }
   }, [id]);
@@ -157,7 +163,6 @@ const ProductDetail: React.FC = () => {
         onAction: () => (window.location.href = '/wishlist') 
       });
     } catch (error: any) {
-      console.error('Failed to add to wishlist:', error);
       if (error.message && error.message.includes('이미')) {
         showToast({ message: '이미 위시리스트에 있는 상품입니다.' });
       } else {
@@ -173,31 +178,30 @@ const ProductDetail: React.FC = () => {
     return selectedVariant.salePrice > 0 ? selectedVariant.salePrice : selectedVariant.listPrice;
   }, [selectedVariant]);
 
-  const totalPrice = useMemo(() => displayPrice * qty, [displayPrice, qty]);
-  const freeShipping = totalPrice >= 50000;
+  // totalPrice 제거 (사용하지 않음)
 
-  const addToCartAndShow = () => {
+  const addToCartAndShow = async () => {
     if (!detail || !selectedVariant) return;
-    const cartItem: LegacyProduct = {
-      id: detail.id,
-      name: detail.name,
-      price: displayPrice,
-      category: detail.categories[0] || '기타',
-      image: images[0] || '',
-      rating: detail.avgRating,
-      reviewCount: detail.reviewCount,
-    } as LegacyProduct;
-    addToCart(cartItem, qty);
-    setCartModalOpen(true);
+    
+    try {
+      await addToCart(selectedVariant.id, qty);
+      
+      // 모달에 표시할 상품 정보 설정
+      setAddedProduct({
+        id: detail.id,
+        name: detail.name,
+        imageUrl: images[0] || '',
+        price: displayPrice,
+        brandName: detail.brandName || ''
+      });
+      
+      setCartModalOpen(true);
+    } catch (error) {
+      showToast({ message: '장바구니에 상품을 추가하는데 실패했습니다.' });
+    }
   };
 
-  const frequentlyBought = useMemo(() => {
-    if (!detail) return [] as LegacyProduct[];
-    return allProducts
-      .filter(p => p.id !== detail.id && p.category === (detail.categories[0] || ''))
-      .sort((a, b) => (b.reviewCount ?? 0) - (a.reviewCount ?? 0))
-      .slice(0, 4);
-  }, [detail]);
+  // frequentlyBought 기능 제거 (더미데이터 사용 안 함)
 
   // Use review summary if available, otherwise fallback to detail
   const rating = reviewSummary ? Math.round(reviewSummary.average * 10) / 10 : (detail?.avgRating ?? 0);
@@ -562,62 +566,12 @@ const ProductDetail: React.FC = () => {
       </div>
 
       {/* Cart Modal */}
-      {cartModalOpen && (
-        <div className="fixed inset-0 z-50">
-          <div className="absolute inset-0 bg-black/40" onClick={closeCartModal} />
-          <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[90%] max-w-xl bg-white rounded-2xl shadow-lg overflow-hidden">
-            <div className="p-5 border-b">
-              <h3 className="text-lg font-semibold text-brand-gray-900">장바구니에 담았습니다</h3>
-            </div>
-            <div className="p-5">
-              <div className="flex items-center mb-4">
-                <div className="w-16 h-16 bg-gray-100 rounded-md overflow-hidden mr-3">
-                  <img src={images[0]} alt={detail.name} className="w-full h-full object-cover" />
-                </div>
-                <div className="min-w-0">
-                  <p className="text-sm text-brand-gray-900 font-medium truncate">{detail.name}</p>
-                  <p className="text-sm text-brand-gray-700">{priceFormatted(displayPrice)} × {qty}</p>
-                </div>
-              </div>
-
-              {frequentlyBought.length > 0 && (
-                <div className="mb-5">
-                  <p className="text-sm font-semibold text-brand-gray-900 mb-2">함께 많이 주문하는 조합</p>
-                  <div className="grid grid-cols-2 gap-3">
-                    {frequentlyBought.map(p => (
-                      <div key={p.id} className="flex items-center gap-3 border rounded-lg p-2">
-                        <div className="w-12 h-12 bg-gray-100 rounded overflow-hidden flex-shrink-0">
-                          <img src={p.image} alt={p.name} className="w-full h-full object-cover" />
-                        </div>
-                        <div className="min-w-0">
-                          <p className="text-xs text-brand-gray-900 truncate">{p.name}</p>
-                          <p className="text-[11px] text-brand-gray-600">{p.price.toLocaleString()}원</p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              <div className="flex items-center justify-between text-sm mb-3">
-                <span className="text-brand-gray-700">합계</span>
-                <span className="text-brand-gray-900 font-semibold">{totalPrice.toLocaleString()}원</span>
-              </div>
-              <div className="flex items-center justify-between text-xs mb-4">
-                <span className="text-brand-gray-600">무료 배송 기준 (50,000원 이상)</span>
-                <span className={freeShipping ? 'text-brand-green font-semibold' : 'text-brand-gray-600'}>
-                  {freeShipping ? '무료 배송 적용' : `${(50000 - totalPrice).toLocaleString()}원 남음`}
-                </span>
-              </div>
-
-              <div className="flex items-center justify-end gap-2">
-                <button onClick={closeCartModal} className="px-4 py-2 text-sm rounded-md border text-brand-gray-700 hover:bg-gray-50">취소</button>
-                <Link to="/cart" className="px-4 py-2 text-sm rounded-md bg-brand-pink text-brand-gray-900 hover:bg-brand-pink/80">장바구니 보기</Link>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      <AddToCartModal
+        isOpen={cartModalOpen}
+        onClose={closeCartModal}
+        product={addedProduct || undefined}
+        quantity={qty}
+      />
 
       {/* Ask Question Modal */}
       <AskQuestionModal

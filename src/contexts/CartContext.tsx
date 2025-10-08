@@ -1,14 +1,41 @@
-import React, { createContext, useContext, useMemo, useState } from 'react';
-import type { Product } from '../data/products';
-
-interface CartItem {
-  product: Product;
-  quantity: number;
-}
+import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
+import { 
+  getCart, 
+  addToCart as addToCartAPI, 
+  updateQuantity, 
+  deleteCartProduct,
+  deleteSelectedCartProducts,
+  mergeGuestCart,
+  type CartItemDTO,
+  type OrderSummaryDTO,
+  type RecommendedProductDTO
+} from '../lib/cart';
 
 interface CartContextValue {
-  items: CartItem[];
-  addToCart: (product: Product, quantity?: number) => void;
+  // 장바구니 데이터
+  items: CartItemDTO[];
+  summary: OrderSummaryDTO | null;
+  recommendedProducts: RecommendedProductDTO[];
+  cartId: number | null;
+  guestToken: string | null;
+  
+  // 상태
+  loading: boolean;
+  error: string | null;
+  
+  // 액션
+  addToCart: (productVariantId: number, qty: number) => Promise<void>;
+  updateItemQuantity: (cartProductId: number, qty: number) => Promise<void>;
+  removeItem: (cartProductId: number) => Promise<void>;
+  removeSelectedItems: () => Promise<void>;
+  refreshCart: () => Promise<void>;
+  mergeGuestCart: () => Promise<void>;
+  
+  // 프론트엔드 선택 관리
+  updateItemSelection: (cartProductId: number, isSelected: boolean) => void;
+  updateAllItemsSelection: (isSelected: boolean) => void;
+  
+  // 팝업 상태는 제거됨 (AddToCartModal에서 직접 관리)
 }
 
 const CartContext = createContext<CartContextValue | undefined>(undefined);
@@ -20,50 +47,145 @@ export const useCart = (): CartContextValue => {
 };
 
 export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [items, setItems] = useState<CartItem[]>([]);
-  const [lastAdded, setLastAdded] = useState<CartItem | null>(null);
-  const [open, setOpen] = useState(false);
+  // 상태
+  const [items, setItems] = useState<CartItemDTO[]>([]);
+  const [summary, setSummary] = useState<OrderSummaryDTO | null>(null);
+  const [recommendedProducts, setRecommendedProducts] = useState<RecommendedProductDTO[]>([]);
+  const [cartId, setCartId] = useState<number | null>(null);
+  const [guestToken, setGuestTokenState] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  
+  // 팝업 상태는 AddToCartModal에서 직접 관리
 
-  const addToCart = (product: Product, quantity: number = 1) => {
-    setItems((prev) => {
-      const idx = prev.findIndex((it) => it.product.id === product.id);
-      if (idx >= 0) {
-        const next = [...prev];
-        next[idx] = { product, quantity: next[idx].quantity + quantity };
-        return next;
+  // 장바구니 데이터 새로고침
+  const refreshCart = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const cartData = await getCart();
+      setItems(cartData.items);
+      setSummary(cartData.summary);
+      setRecommendedProducts(cartData.recommendedProducts);
+      setCartId(cartData.cartId);
+      setGuestTokenState(cartData.guestToken);
+    } catch (err: any) {
+      setError(err.message || '장바구니를 불러오는데 실패했습니다.');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  // 초기 로드
+  useEffect(() => {
+    refreshCart();
+  }, [refreshCart]);
+
+  // 장바구니에 상품 추가
+  const addToCart = useCallback(async (productVariantId: number, qty: number) => {
+    try {
+      await addToCartAPI(productVariantId, qty);
+      
+      // 장바구니 데이터 새로고침
+      await refreshCart();
+    } catch (err: any) {
+      setError(err.message || '장바구니에 상품을 추가하는데 실패했습니다.');
+      throw err;
+    }
+  }, [refreshCart]);
+
+  // 수량 업데이트
+  const updateItemQuantity = useCallback(async (cartProductId: number, qty: number) => {
+    try {
+      await updateQuantity(cartProductId, qty);
+      await refreshCart();
+    } catch (err: any) {
+      setError(err.message || '수량을 업데이트하는데 실패했습니다.');
+      throw err;
+    }
+  }, [refreshCart]);
+
+  // 프론트엔드 선택 상태 업데이트
+  const updateItemSelection = useCallback((cartProductId: number, isSelected: boolean) => {
+    setItems(prev => 
+      prev.map(item => 
+        item.cartProductId === cartProductId 
+          ? { ...item, isSelected }
+          : item
+      )
+    );
+  }, []);
+
+  // 프론트엔드 전체 선택/해제
+  const updateAllItemsSelection = useCallback((isSelected: boolean) => {
+    setItems(prev => 
+      prev.map(item => ({ ...item, isSelected }))
+    );
+  }, []);
+
+  // 상품 삭제
+  const removeItem = useCallback(async (cartProductId: number) => {
+    try {
+      await deleteCartProduct(cartProductId);
+      await refreshCart();
+    } catch (err: any) {
+      setError(err.message || '상품을 삭제하는데 실패했습니다.');
+      throw err;
+    }
+  }, [refreshCart]);
+
+  // 선택된 상품 삭제
+  const removeSelectedItems = useCallback(async () => {
+    try {
+      // 선택된 아이템의 ID 수집
+      const selectedIds = items
+        .filter(item => item.isSelected)
+        .map(item => item.cartProductId);
+      
+      if (selectedIds.length === 0) {
+        return; // 선택된 아이템이 없으면 종료
       }
-      return [...prev, { product, quantity }];
-    });
-    const item = { product, quantity };
-    setLastAdded(item);
-    setOpen(true);
-    window.setTimeout(() => setOpen(false), 2500);
-  };
+      
+      await deleteSelectedCartProducts(selectedIds);
+      await refreshCart();
+    } catch (err: any) {
+      setError(err.message || '선택된 상품을 삭제하는데 실패했습니다.');
+      throw err;
+    }
+  }, [items, refreshCart]);
 
-  const value = useMemo(() => ({ items, addToCart }), [items]);
+  // 게스트 장바구니 병합
+  const mergeGuestCartAction = useCallback(async () => {
+    try {
+      await mergeGuestCart();
+      await refreshCart();
+    } catch (err: any) {
+      setError(err.message || '게스트 장바구니를 병합하는데 실패했습니다.');
+      throw err;
+    }
+  }, [refreshCart]);
+
+  const value: CartContextValue = {
+    items,
+    summary,
+    recommendedProducts,
+    cartId,
+    guestToken,
+    loading,
+    error,
+    addToCart,
+    updateItemQuantity,
+    updateItemSelection,
+    updateAllItemsSelection,
+    removeItem,
+    removeSelectedItems,
+    refreshCart,
+    mergeGuestCart: mergeGuestCartAction
+  };
 
   return (
     <CartContext.Provider value={value}>
       {children}
-      {/* Cart popup */}
-      <div className={`fixed left-1/2 -translate-x-1/2 bottom-0 w-full max-w-md px-4 pb-4 transition-transform ${open ? 'translate-y-0' : 'translate-y-24'}`}>
-        {lastAdded && (
-          <div className="bg-white border border-gray-200 rounded-xl shadow-lg overflow-hidden">
-            <div className="flex items-center p-3">
-              <div className="w-14 h-14 rounded-md overflow-hidden bg-gray-100 mr-3 flex-shrink-0">
-                <img src={lastAdded.product.image} alt={lastAdded.product.name} className="w-full h-full object-cover" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-brand-gray-900 truncate">장바구니에 담았습니다</p>
-                <p className="text-xs text-brand-gray-700 truncate">{lastAdded.product.name}</p>
-              </div>
-              <button onClick={() => setOpen(false)} aria-label="닫기" className="ml-3 text-gray-500 hover:text-gray-700">
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12"/></svg>
-              </button>
-            </div>
-          </div>
-        )}
-      </div>
     </CartContext.Provider>
   );
 };

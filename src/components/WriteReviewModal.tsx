@@ -61,7 +61,6 @@ const WriteReviewModal: React.FC<WriteReviewModalProps> = ({
       onSuccess();
       onClose();
     } catch (error) {
-      console.error('Failed to create review:', error);
       showToast({ message: '리뷰 등록에 실패했습니다.' });
     } finally {
       setSubmitting(false);

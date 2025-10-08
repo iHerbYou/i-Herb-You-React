@@ -61,7 +61,6 @@ const AskQuestionModal: React.FC<AskQuestionModalProps> = ({
       onSuccess();
       onClose();
     } catch (error) {
-      console.error('Failed to create question:', error);
       showToast({ message: '질문 등록에 실패했습니다.' });
     } finally {
       setSubmitting(false);

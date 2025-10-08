@@ -10,6 +10,7 @@ export type ProductListDto = {
   reviewCount: number;
   sales: number;
   soldOut: boolean;
+  productVariantId: number;  // 기본 variant ID
 };
 
 export type SearchResultPage = {

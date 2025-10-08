@@ -9,6 +9,7 @@ export interface Product {
   rating?: number; // 0~5
   reviewCount?: number; // number of reviews
   image: string;
+  productVariantId?: number; // 기본 variant ID (API 데이터에서만 사용)
 }
 
 export const products: Product[] = [

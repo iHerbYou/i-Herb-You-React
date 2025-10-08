@@ -19,8 +19,7 @@ const BrandProducts: React.FC = () => {
       .then((brandsData) => {
         setBrands(brandsData);
       })
-      .catch((error) => {
-        console.error('Failed to load brands:', error);
+      .catch(() => {
         setBrands([]);
       });
   }, []);
@@ -57,8 +56,7 @@ const BrandProducts: React.FC = () => {
       .then((brandProducts) => {
         setProducts(brandProducts);
       })
-      .catch((error) => {
-        console.error('Brand products fetch failed:', error);
+      .catch(() => {
         setProducts([]);
       })
       .finally(() => {
@@ -151,6 +149,7 @@ const BrandProducts: React.FC = () => {
                     reviewCount: product.reviewCount,
                     image: product.thumbnailUrl || '/images/placeholder.jpg',
                   }}
+                  productVariantId={product.productVariantId}
                 />
               ))}
             </div>

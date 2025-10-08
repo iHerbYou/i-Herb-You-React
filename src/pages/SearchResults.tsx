@@ -210,6 +210,7 @@ const SearchResults: React.FC = () => {
                     reviewCount: product.reviewCount,
                     image: product.thumbnailUrl || '/images/placeholder.jpg',
                   }}
+                  productVariantId={product.productVariantId}
                 />
               ))}
             </div>

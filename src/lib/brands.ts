@@ -14,6 +14,7 @@ export type BrandProductResponse = {
   rating: number;
   reviewCount: number;
   thumbnailUrl: string;
+  productVariantId: number;  // 기본 variant ID
 };
 
 // 브랜드 캐시

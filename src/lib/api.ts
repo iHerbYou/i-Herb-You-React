@@ -190,6 +190,6 @@ export const put = <T = unknown>(path: string, body?: unknown, init?: Omit<Param
 export const patch = <T = unknown>(path: string, body?: unknown, init?: Omit<Parameters<typeof api>[1], 'method' | 'body'>) =>
   api<T>(path, { ...(init || {}), method: 'PATCH', body });
 
-export const del = <T = unknown>(path: string, init?: Omit<Parameters<typeof api>[1], 'method' | 'body'>) =>
-  api<T>(path, { ...(init || {}), method: 'DELETE' });
+export const del = <T = unknown>(path: string, body?: unknown, init?: Omit<Parameters<typeof api>[1], 'method' | 'body'>) =>
+  api<T>(path, { ...(init || {}), method: 'DELETE', body });
 

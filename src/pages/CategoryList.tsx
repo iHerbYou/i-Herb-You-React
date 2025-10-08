@@ -2,7 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { getCategoryTreeSync, getCategoryTree } from '../lib/catalog';
 import type { TopCategory, MidCategory, SmallCategory } from '../data/categories';
-import { products as allProducts, type Product } from '../data/products';
+import type { Product } from '../data/products';
 import ProductCard from '../components/ProductCard';
 import { fetchProductList, type PageResponseDto, type ProductListDto } from '../lib/products';
 
@@ -42,33 +42,18 @@ const CategoryList: React.FC = () => {
   const [priceSelection, setPriceSelection] = useState<string>('');
   const [page, setPage] = useState<number>(1);
 
-  const [listPage, setListPage] = useState<PageResponseDto<ProductListDto>>(() => {
-    // initial fallback from local data for fast first paint
-    const base = topNode?.name ? allProducts.filter(p => p.category === topNode.name) : allProducts;
-    const items = base.slice(0, PAGE_SIZE).map((p) => ({
-      id: p.id,
-      name: p.name,
-      brandName: (p.name.split(' ')[0] || 'iHerbYou'),
-      thumbnailUrl: p.image,
-      minPrice: p.price,
-      avgRating: p.rating ?? 0,
-      reviewCount: p.reviewCount ?? 0,
-      sales: p.reviewCount ?? 0,
-      soldOut: false,
-    }));
-    return {
-      totalPages: 1,
-      totalElements: items.length,
-      first: true,
-      last: true,
-      size: PAGE_SIZE,
-      content: items,
-      number: 0,
-      sort: { empty: true, sorted: false, unsorted: true },
-      pageable: { offset: 0, sort: { empty: true, sorted: false, unsorted: true }, paged: true, pageNumber: 0, pageSize: PAGE_SIZE, unpaged: false },
-      numberOfElements: items.length,
-      empty: items.length === 0,
-    } as PageResponseDto<ProductListDto>;
+  const [listPage, setListPage] = useState<PageResponseDto<ProductListDto>>({
+    totalPages: 0,
+    totalElements: 0,
+    first: true,
+    last: true,
+    size: PAGE_SIZE,
+    content: [],
+    number: 0,
+    sort: { empty: true, sorted: false, unsorted: true },
+    pageable: { offset: 0, sort: { empty: true, sorted: false, unsorted: true }, paged: true, pageNumber: 0, pageSize: PAGE_SIZE, unpaged: false },
+    numberOfElements: 0,
+    empty: true,
   });
 
   const totalPages = Math.max(1, listPage.totalPages || 1);
@@ -87,84 +72,23 @@ const CategoryList: React.FC = () => {
     fetchProductList({ page, size: PAGE_SIZE, excludeSoldOut, minPrice, maxPrice, categoryId, sort: sort as any, direction })
       .then(setListPage)
       .catch(() => {
-        // fallback to local mock filtering
-        let list: Product[] = topNode?.name ? allProducts.filter(p => p.category === topNode.name) : allProducts;
-        if (range) list = list.filter(p => p.price >= range.min && (maxPrice ? p.price < maxPrice : true));
-        if (excludeSoldOut) {
-          // no-op in mock
-        }
-        const bySales = (p: Product) => (p.reviewCount ?? 0);
-        const byRating = (p: Product) => (p.rating ?? 0);
-        const byReviews = (p: Product) => (p.reviewCount ?? 0);
-        list = [...list].sort((a, b) => {
-          switch (sortKey) {
-            case 'sales': return bySales(b) - bySales(a);
-            case 'rating': return byRating(b) - byRating(a);
-            case 'reviews': return byReviews(b) - byReviews(a);
-            case 'priceDesc': return b.price - a.price;
-            case 'priceAsc': return a.price - b.price;
-            default: return 0;
-          }
-        });
-
-        const total = list.length;
-        const totalPagesLocal = Math.max(1, Math.ceil(total / PAGE_SIZE));
-        const offsetLocal = (page - 1) * PAGE_SIZE;
-        const slice = list.slice(offsetLocal, offsetLocal + PAGE_SIZE);
-        const items = slice.map((p) => ({
-          id: p.id,
-          name: p.name,
-          brandName: (p.name.split(' ')[0] || 'iHerbYou'),
-          thumbnailUrl: p.image,
-          minPrice: p.price,
-          avgRating: p.rating ?? 0,
-          reviewCount: p.reviewCount ?? 0,
-          sales: p.reviewCount ?? 0,
-          soldOut: false,
-        }));
         setListPage({
-          totalPages: totalPagesLocal,
-          totalElements: total,
-          first: page === 1,
-          last: page === totalPagesLocal,
+          totalPages: 0,
+          totalElements: 0,
+          first: true,
+          last: true,
           size: PAGE_SIZE,
-          content: items,
-          number: page - 1,
-          sort: { empty: false, sorted: true, unsorted: false },
-          pageable: { offset: offsetLocal, sort: { empty: false, sorted: true, unsorted: false }, paged: true, pageNumber: page - 1, pageSize: PAGE_SIZE, unpaged: false },
-          numberOfElements: items.length,
-          empty: items.length === 0,
+          content: [],
+          number: 0,
+          sort: { empty: true, sorted: false, unsorted: true },
+          pageable: { offset: 0, sort: { empty: true, sorted: false, unsorted: true }, paged: true, pageNumber: 0, pageSize: PAGE_SIZE, unpaged: false },
+          numberOfElements: 0,
+          empty: true,
         });
       });
   }, [page, PAGE_SIZE, excludeSoldOut, priceSelection, subId, midId, topId, sortKey, topNode]);
 
-  const [modalOpen, setModalOpen] = useState<boolean>(false);
-  const [addedProduct, setAddedProduct] = useState<Product | null>(null);
-
-  const handleAddToCart = (product: Product) => {
-    setAddedProduct(product);
-    setModalOpen(true);
-  };
-
-  const currentProducts: Product[] = useMemo(() => {
-    return (listPage.content || []).map((item) => ({
-      id: item.id,
-      name: item.name,
-      price: item.minPrice,
-      category: topNode?.name ?? '기타',
-      image: item.thumbnailUrl,
-      rating: item.avgRating,
-      reviewCount: item.reviewCount,
-    } as Product));
-  }, [listPage, topNode]);
-
-  const frequentlyBought = useMemo(() => {
-    if (!addedProduct) return [] as Product[];
-    return currentProducts
-      .filter(p => p.id !== addedProduct.id)
-      .sort((a, b) => (b.reviewCount ?? 0) - (a.reviewCount ?? 0))
-      .slice(0, 4);
-  }, [addedProduct, currentProducts]);
+  // onAddToCart prop을 제거하고 ProductCard에서 직접 API 호출하도록 함
 
   const subcategoryButtons = useMemo(() => {
     if (midNode && midNode.items) return midNode.items.map(s => s.name);
@@ -299,7 +223,7 @@ const CategoryList: React.FC = () => {
               reviewCount: item.reviewCount,
             } as Product;
             return (
-              <ProductCard key={item.id} product={cardProduct} onAddToCart={handleAddToCart} />
+              <ProductCard key={item.id} product={cardProduct} productVariantId={item.productVariantId} />
             );
           })}
           {listPage.content.length === 0 && (
@@ -322,52 +246,6 @@ const CategoryList: React.FC = () => {
         )}
       </div>
 
-      {/* Add-to-Cart Modal */}
-      {modalOpen && addedProduct && (
-        <div className="fixed inset-0 z-50">
-          <div className="absolute inset-0 bg-black/40" onClick={()=>setModalOpen(false)} />
-          <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[90%] max-w-xl bg-white rounded-2xl shadow-lg overflow-hidden">
-            <div className="p-5 border-b">
-              <h3 className="text-lg font-semibold text-brand-gray-900">장바구니에 담았습니다</h3>
-            </div>
-            <div className="p-5">
-              <div className="flex items-center mb-4">
-                <div className="w-16 h-16 bg-gray-100 rounded-md overflow-hidden mr-3">
-                  <img src={addedProduct.image} alt={addedProduct.name} className="w-full h-full object-cover" />
-                </div>
-                <div className="min-w-0">
-                  <p className="text-sm text-brand-gray-900 font-medium truncate">{addedProduct.name}</p>
-                  <p className="text-sm text-brand-gray-700">{addedProduct.price.toLocaleString()}원</p>
-                </div>
-              </div>
-
-              {frequentlyBought.length > 0 && (
-                <div className="mb-5">
-                  <p className="text-sm font-semibold text-brand-gray-900 mb-2">함께 많이 주문하는 조합</p>
-                  <div className="grid grid-cols-2 gap-3">
-                    {frequentlyBought.map(p => (
-                      <div key={p.id} className="flex items-center gap-3 border rounded-lg p-2">
-                        <div className="w-12 h-12 bg-gray-100 rounded overflow-hidden flex-shrink-0">
-                          <img src={p.image} alt={p.name} className="w-full h-full object-cover" />
-                        </div>
-                        <div className="min-w-0">
-                          <p className="text-xs text-brand-gray-900 truncate">{p.name}</p>
-                          <p className="text-[11px] text-brand-gray-600">{p.price.toLocaleString()}원</p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              <div className="flex items-center justify-end gap-2">
-                <button onClick={()=>setModalOpen(false)} className="px-4 py-2 text-sm rounded-md border text-brand-gray-700 hover:bg-gray-50">계속 쇼핑하기</button>
-                <Link to="/cart" className="px-4 py-2 text-sm rounded-md bg-brand-pink text-brand-gray-900 hover:bg-brand-pink/80">장바구니 보기</Link>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };

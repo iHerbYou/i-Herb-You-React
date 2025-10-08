@@ -68,7 +68,6 @@ const ProductQnASection: React.FC<ProductQnASectionProps> = ({ productId }) => {
       setQuestions(response.content);
       setTotalPages(response.totalPages);
     } catch (error) {
-      console.error('Failed to fetch questions:', error);
       showToast({ message: '질문 목록을 불러오는 데 실패했습니다.' });
     } finally {
       setLoading(false);
@@ -87,7 +86,6 @@ const ProductQnASection: React.FC<ProductQnASectionProps> = ({ productId }) => {
       showToast({ message: '질문이 삭제되었습니다.' });
       loadQuestions();
     } catch (error) {
-      console.error('Failed to delete question:', error);
       showToast({ message: '질문 삭제에 실패했습니다.' });
     }
   };

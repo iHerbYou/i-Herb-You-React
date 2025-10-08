@@ -62,7 +62,6 @@ const ReportReviewModal: React.FC<ReportReviewModalProps> = ({
       onSuccess();
       onClose();
     } catch (error) {
-      console.error('Failed to report review:', error);
       showToast({ message: '신고 접수에 실패했습니다.' });
     } finally {
       setSubmitting(false);
