@@ -159,9 +159,8 @@ const Login: React.FC = () => {
           </button>
         </div>
 
-        <div className="mt-6 grid grid-cols-3 gap-2 text-center text-sm">
+        <div className="mt-8 grid grid-cols-2 gap-2 text-center text-sm">
           <Link to="/signup" className="text-brand-gray-700 hover:text-brand-pink">회원가입</Link>
-          <Link to="/find-email" className="text-brand-gray-700 hover:text-brand-pink">이메일 찾기</Link>
           <Link to="/reset-password" className="text-brand-gray-700 hover:text-brand-pink">비밀번호 재설정</Link>
         </div>
       </div>
