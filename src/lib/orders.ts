@@ -29,6 +29,12 @@ export type OrderSummaryDto = {
 // 결제 요청
 export type PaymentRequestDto = {
   methodCodeValue: number;
+  paymentPrice: number; // 최종 결제 금액 (필수)
+  recipientName?: string; // 수령인
+  recipientPhone?: string; // 연락처
+  zipcode?: string; // 우편번호
+  address?: string; // 주소
+  addressDetail?: string; // 상세주소
 };
 
 // 결제 응답

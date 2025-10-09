@@ -5,25 +5,24 @@ import { createOrder, requestPayment, type OrderItemDto } from '../lib/orders';
 import { getUsableCoupons, type UsableCouponDto } from '../lib/coupons';
 import { getPointBalance, usePoints, restorePoints } from '../lib/points';
 import { getAuth, getCurrentUser, type UserInfoResponseDto } from '../lib/auth';
+import { getAddresses, type UserAddressResponseDto } from '../lib/addresses';
 import ConfirmModal from '../components/ConfirmModal';
 import CouponSelectModal from '../components/CouponSelectModal';
+import AddressManageModal from '../components/AddressManageModal';
 
-// 결제 수단 코드
-const PAYMENT_METHODS = [
-  { code: 4101, name: '네이버페이', icon: 'N' },
-  { code: 4102, name: '페이코', icon: 'P' },
-  { code: 4103, name: '카카오페이', icon: 'K' },
-  { code: 4104, name: '신용/체크카드', icon: '💳' },
-  { code: 4105, name: '무통장입금', icon: '🏦' },
-];
+// 토스페이먼츠 클라이언트 키 (테스트용)
+const TOSS_CLIENT_KEY = 'test_gck_docs_Ovk5rk1EwkEbP0W43n07xlzm';
 
 const Order: React.FC = () => {
   const navigate = useNavigate();
-  const { items: cartItems, refreshCart } = useCart();
+  const { items: cartItems } = useCart();
   const auth = getAuth();
 
   // 장바구니에서 선택된 상품만 가져오기
   const selectedItems = cartItems.filter(item => item.isSelected);
+  
+  // 결제할 상품들의 cartProductId 목록
+  const selectedCartProductIds = selectedItems.map(item => item.cartProductId);
 
   // 주문 상품이 없으면 장바구니로 리다이렉트
   useEffect(() => {
@@ -36,7 +35,12 @@ const Order: React.FC = () => {
   const [userInfo, setUserInfo] = useState<UserInfoResponseDto | null>(null);
   const [loadingUserInfo, setLoadingUserInfo] = useState(true);
 
-  // 사용자 정보, 쿠폰, 포인트 데이터 로드
+  // 배송지 상태
+  const [selectedAddress, setSelectedAddress] = useState<UserAddressResponseDto | null>(null);
+  const [addressModalOpen, setAddressModalOpen] = useState(false);
+  const [customsInfo, setCustomsInfo] = useState('');
+
+  // 사용자 정보, 배송지, 쿠폰, 포인트 데이터 로드
   useEffect(() => {
     if (auth?.userId) {
       loadUserData();
@@ -47,30 +51,29 @@ const Order: React.FC = () => {
     if (!auth?.userId) return;
 
     try {
-      const [userData, couponsData, pointsData] = await Promise.all([
+      const [userData, addressesData, couponsData, pointsData] = await Promise.all([
         getCurrentUser(),
-        getUsableCoupons(auth.userId),
-        getPointBalance(auth.userId),
+        getAddresses(),
+        getUsableCoupons(),
+        getPointBalance(),
       ]);
       setUserInfo(userData);
       setCoupons(couponsData);
       setAvailablePoints(pointsData.balance);
+
+      // 기본 배송지 자동 선택
+      const defaultAddress = addressesData.find(addr => addr.isDefault);
+      if (defaultAddress) {
+        setSelectedAddress(defaultAddress);
+      } else if (addressesData.length > 0) {
+        setSelectedAddress(addressesData[0]);
+      }
     } catch (err: any) {
       alert(err.message || '사용자 정보를 불러오는데 실패했습니다.');
     } finally {
       setLoadingUserInfo(false);
     }
   };
-
-  // 배송 정보 (사용자 정보에서 자동으로 채워짐)
-  const recipient = userInfo?.name || '수령인';
-  const phone = userInfo?.phoneNumber || '연락처';
-  const address = '서울특별시 강남구 강남대로 364'; // TODO: 배송지 API 연동 필요
-  const [customsInfo, setCustomsInfo] = useState('');
-
-  // 결제 수단
-  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState(4101);
-  const [rememberPaymentMethod, setRememberPaymentMethod] = useState(false);
 
   // 쿠폰 & 포인트
   const [coupons, setCoupons] = useState<UsableCouponDto[]>([]);
@@ -95,9 +98,30 @@ const Order: React.FC = () => {
 
   const [submitting, setSubmitting] = useState(false);
 
+  // 토스페이먼츠 위젯 상태
+  const [paymentWidget, setPaymentWidget] = useState<TossPayments.PaymentWidget | null>(null);
+  const [widgetLoading, setWidgetLoading] = useState(true);
+
+  // 전화번호 포맷팅 함수
+  const formatPhoneNumber = (value: string): string => {
+    // 숫자만 추출
+    const numbers = value.replace(/[^\d]/g, '');
+    
+    // 길이에 따라 포맷팅
+    if (numbers.length <= 3) {
+      return numbers;
+    } else if (numbers.length <= 7) {
+      return `${numbers.slice(0, 3)}-${numbers.slice(3)}`;
+    } else if (numbers.length <= 10) {
+      return `${numbers.slice(0, 3)}-${numbers.slice(3, 6)}-${numbers.slice(6)}`;
+    } else {
+      return `${numbers.slice(0, 3)}-${numbers.slice(3, 7)}-${numbers.slice(7, 11)}`;
+    }
+  };
+
   // 금액 계산
   const subtotal = selectedItems.reduce((sum, item) => sum + (item.price || 0) * item.qty, 0);
-  const deliveryFee = subtotal >= 50000 ? 0 : 3000;
+  const deliveryFee = subtotal >= 50000 ? 0 : 2500;
   
   // 쿠폰 할인 계산
   const couponDiscount = selectedCoupon
@@ -145,11 +169,155 @@ const Order: React.FC = () => {
     }
   };
 
+  // 토스페이먼츠 위젯 초기화
+  useEffect(() => {
+    if (!auth?.userId || loadingUserInfo || selectedItems.length === 0) {
+      setWidgetLoading(false);
+      return;
+    }
+
+    let isSubscribed = true;
+
+    const initializeWidget = async () => {
+      try {
+        setWidgetLoading(true);
+
+        // SDK 로드 대기
+        let attempts = 0;
+        const maxAttempts = 50;
+        
+        while (!window.TossPayments && attempts < maxAttempts) {
+          await new Promise(resolve => setTimeout(resolve, 100));
+          attempts++;
+        }
+
+        if (!window.TossPayments) {
+          console.error('토스페이먼츠 SDK를 로드할 수 없습니다.');
+          setWidgetLoading(false);
+          return;
+        }
+
+        if (!isSubscribed) return;
+
+        const amount = Math.floor(Number(totalPrice));
+        
+        if (amount <= 0 || !Number.isFinite(amount)) {
+          console.error('유효하지 않은 금액:', amount);
+          setWidgetLoading(false);
+          return;
+        }
+        
+        const tossPayments = window.TossPayments(TOSS_CLIENT_KEY);
+        const customerKey = `customer_${auth.userId}`;
+        
+        const widgets = tossPayments.widgets({ customerKey });
+        
+        if (!isSubscribed) return;
+        
+        setPaymentWidget(widgets);
+
+        // 1. 금액 설정 (필수 - 먼저 호출해야 함)
+        await widgets.setAmount({
+          currency: 'KRW',
+          value: amount
+        });
+
+        // 2. 결제 수단 위젯과 이용약관 위젯을 병렬로 렌더링
+        await Promise.all([
+          widgets.renderPaymentMethods({
+            selector: '#payment-widget',
+            variantKey: 'DEFAULT'
+          }),
+          widgets.renderAgreement({
+            selector: '#agreement-widget',
+            variantKey: 'AGREEMENT'
+          })
+        ]);
+        
+        setWidgetLoading(false);
+      } catch (error: any) {
+        console.error('위젯 초기화 오류:', error);
+        console.error('오류 상세:', error.message, error.stack);
+        setWidgetLoading(false);
+      }
+    };
+
+    // 컴포넌트 마운트 후 초기화
+    const timer = setTimeout(() => {
+      initializeWidget();
+    }, 1000);
+
+    return () => {
+      isSubscribed = false;
+      clearTimeout(timer);
+    };
+  }, [auth?.userId, loadingUserInfo, selectedItems.length]);
+
+  // 금액 변경 시 위젯 업데이트
+  useEffect(() => {
+    const updateAmount = async () => {
+      if (paymentWidget && !widgetLoading) {
+        try {
+          await paymentWidget.setAmount({
+            currency: 'KRW',
+            value: Math.floor(Number(totalPrice))
+          });
+          console.log('금액 업데이트 완료:', totalPrice);
+        } catch (error) {
+          console.error('금액 업데이트 오류:', error);
+        }
+      }
+    };
+    
+    updateAmount();
+  }, [totalPrice, paymentWidget, widgetLoading]);
+
+  // 토스페이먼츠 결제 처리
+  const handleTossPayment = async (externalOrderKey: string, cartProductIdsParam: string) => {
+    try {
+      if (!paymentWidget) {
+        throw new Error('결제 위젯이 초기화되지 않았습니다.');
+      }
+      
+      // 주문명 생성
+      const orderName = selectedItems.length > 1
+        ? `${selectedItems[0].productName} 외 ${selectedItems.length - 1}건`
+        : selectedItems[0].productName;
+
+      // 결제 요청 (백엔드에서 생성한 externalOrderKey 사용)
+      await paymentWidget.requestPayment({
+        orderId: externalOrderKey,
+        orderName: orderName,
+        customerName: selectedAddress?.recipient || userInfo?.name || '',
+        customerEmail: userInfo?.email || '',
+        customerMobilePhone: selectedAddress?.phone.replace(/[^0-9]/g, '') || '',
+        successUrl: `${window.location.origin}/order/success?cartProductIds=${cartProductIdsParam}`,
+        failUrl: `${window.location.origin}/order/fail`,
+      });
+    } catch (error: any) {
+      console.error('토스페이먼츠 결제 오류:', error);
+      throw error;
+    }
+  };
+
   // 주문하기
   const handleOrder = async () => {
     if (!auth?.userId) {
       alert('로그인이 필요합니다.');
       navigate('/login');
+      return;
+    }
+
+    // 배송지 검증
+    if (!selectedAddress) {
+      alert('배송지를 등록해주세요.');
+      setAddressModalOpen(true);
+      return;
+    }
+
+    // 결제 위젯 검증
+    if (!paymentWidget) {
+      alert('결제 수단을 불러오는 중입니다. 잠시 후 다시 시도해주세요.');
       return;
     }
 
@@ -187,19 +355,21 @@ const Order: React.FC = () => {
         setUsedPointsOrderId(orderId);
       }
 
-      // 3. 결제 요청
+      // 3. 결제 요청 생성 (백엔드에서 externalOrderKey 생성)
+
       const paymentResult = await requestPayment(orderId, {
-        methodCodeValue: selectedPaymentMethod,
+        methodCodeValue: 417, // 토스페이먼츠
+        paymentPrice: totalPrice, // 최종 결제 금액
+        recipientName: selectedAddress?.recipient,
+        recipientPhone: selectedAddress?.phone,
+        zipcode: selectedAddress?.zipcode,
+        address: selectedAddress?.address,
+        addressDetail: selectedAddress?.addressDetail || undefined,
       });
 
-      // 4. 결제 수단별 페이지로 이동 (TODO: 실제 PG 연동)
-      alert(`주문이 생성되었습니다. 주문번호: ${orderResult.id}\n결제ID: ${paymentResult.paymentId}`);
-      
-      // 장바구니 새로고침 (주문한 상품 제거)
-      await refreshCart();
-      
-      // 주문 완료 페이지로 이동 (TODO: 주문 완료 페이지 구현)
-      navigate('/');
+      // 4. 토스페이먼츠 결제 처리 (결제한 상품 ID와 함께 전달)
+      const cartProductIdsParam = encodeURIComponent(JSON.stringify(selectedCartProductIds));
+      await handleTossPayment(paymentResult.externalOrderKey, cartProductIdsParam);
     } catch (error: any) {
       // 실패 시 포인트 복구
       if (orderId && usedPointsOrderId === orderId && pointsToUse > 0) {
@@ -244,8 +414,11 @@ const Order: React.FC = () => {
             <div className="bg-white rounded-lg shadow-sm border p-6">
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-lg font-semibold text-brand-gray-900">배송 정보</h2>
-                <button className="text-sm text-brand-pink hover:text-brand-pink/80">
-                  변경
+                <button 
+                  onClick={() => setAddressModalOpen(true)}
+                  className="text-sm text-brand-pink hover:text-brand-pink/80"
+                >
+                  {selectedAddress ? '변경' : '배송지 등록'}
                 </button>
               </div>
               {loadingUserInfo ? (
@@ -263,65 +436,77 @@ const Order: React.FC = () => {
                     <div className="h-5 bg-gray-200 rounded w-48"></div>
                   </div>
                 </div>
-              ) : (
+              ) : selectedAddress ? (
                 <div className="space-y-2 text-sm">
                   <div className="flex">
                     <span className="w-20 text-brand-gray-600">수령인</span>
-                    <span className="text-brand-gray-900">{recipient}</span>
+                    <span className="text-brand-gray-900">{selectedAddress.recipient}</span>
                   </div>
                   <div className="flex">
                     <span className="w-20 text-brand-gray-600">연락처</span>
-                    <span className="text-brand-gray-900">{phone}</span>
+                    <span className="text-brand-gray-900">{formatPhoneNumber(selectedAddress.phone)}</span>
+                  </div>
+                  <div className="flex">
+                    <span className="w-20 text-brand-gray-600">우편번호</span>
+                    <span className="text-brand-gray-900">{selectedAddress.zipcode}</span>
                   </div>
                   <div className="flex">
                     <span className="w-20 text-brand-gray-600">주소</span>
-                    <span className="text-brand-gray-900">{address}</span>
+                    <span className="text-brand-gray-900">
+                      {selectedAddress.address}
+                      {selectedAddress.addressDetail && ` ${selectedAddress.addressDetail}`}
+                    </span>
                   </div>
                 </div>
+              ) : (
+                <div className="text-center py-8">
+                  <p className="text-brand-gray-500 mb-3">등록된 배송지가 없습니다.</p>
+                  <button
+                    onClick={() => setAddressModalOpen(true)}
+                    className="text-sm text-brand-pink hover:text-brand-pink/80 underline"
+                  >
+                    배송지 등록하기
+                  </button>
+                </div>
               )}
-              <div className="mt-4">
-                <label className="block text-sm text-brand-gray-700 mb-2">
-                  개인통관고유부호 (선택)
-                </label>
-                <input
-                  type="text"
-                  value={customsInfo}
-                  onChange={(e) => setCustomsInfo(e.target.value)}
-                  maxLength={50}
-                  placeholder="P로 시작하는 13자리 번호"
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-pink"
-                />
-              </div>
+              {selectedAddress && (
+                <div className="mt-4">
+                  <label className="block text-sm text-brand-gray-700 mb-2">
+                    개인통관고유부호 (선택)
+                  </label>
+                  <input
+                    type="text"
+                    value={customsInfo}
+                    onChange={(e) => setCustomsInfo(e.target.value)}
+                    maxLength={50}
+                    placeholder="P로 시작하는 13자리 번호"
+                    className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-pink"
+                  />
+                </div>
+              )}
             </div>
 
-            {/* 결제 수단 */}
+            {/* 결제 수단 (토스페이먼츠 위젯) */}
             <div className="bg-white rounded-lg shadow-sm border p-6">
               <h2 className="text-lg font-semibold text-brand-gray-900 mb-4">결제 수단</h2>
-              <div className="grid grid-cols-2 gap-3 mb-4">
-                {PAYMENT_METHODS.map((method) => (
-                  <button
-                    key={method.code}
-                    onClick={() => setSelectedPaymentMethod(method.code)}
-                    className={`p-4 rounded-lg border-2 transition-colors ${
-                      selectedPaymentMethod === method.code
-                        ? 'border-brand-pink bg-brand-pink/5'
-                        : 'border-gray-200 hover:border-gray-300'
-                    }`}
-                  >
-                    <div className="text-2xl mb-1">{method.icon}</div>
-                    <div className="text-sm font-medium text-brand-gray-900">{method.name}</div>
-                  </button>
-                ))}
+              
+              <div className="relative">
+                {/* 로딩 오버레이 */}
+                {widgetLoading && (
+                  <div className="absolute inset-0 bg-white bg-opacity-90 flex items-center justify-center z-10 rounded-lg">
+                    <div className="text-center">
+                      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-brand-pink mx-auto mb-4"></div>
+                      <p className="text-sm text-brand-gray-500">결제 수단을 불러오는 중...</p>
+                    </div>
+                  </div>
+                )}
+                
+                {/* 토스페이먼츠 결제 수단 위젯 */}
+                <div id="payment-widget" className="mb-4 min-h-[200px]"></div>
+                
+                {/* 토스페이먼츠 이용약관 위젯 */}
+                <div id="agreement-widget" className="min-h-[120px]"></div>
               </div>
-              <label className="flex items-center text-sm text-brand-gray-700">
-                <input
-                  type="checkbox"
-                  checked={rememberPaymentMethod}
-                  onChange={(e) => setRememberPaymentMethod(e.target.checked)}
-                  className="w-4 h-4 text-brand-pink border-gray-300 rounded focus:ring-brand-pink mr-2"
-                />
-                결제방법 기억하기
-              </label>
             </div>
 
             {/* 쿠폰 & 포인트 */}
@@ -471,14 +656,14 @@ const Order: React.FC = () => {
 
               <button
                 onClick={handleOrder}
-                disabled={submitting || selectedItems.length === 0}
+                disabled={submitting || selectedItems.length === 0 || !selectedAddress}
                 className={`w-full py-3 rounded-md font-semibold transition-colors ${
-                  submitting || selectedItems.length === 0
+                  submitting || selectedItems.length === 0 || !selectedAddress
                     ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
                     : 'bg-brand-pink text-brand-gray-900 hover:bg-brand-pink/80'
                 }`}
               >
-                {submitting ? '처리 중...' : `${totalPrice.toLocaleString()}원 결제하기`}
+                {submitting ? '처리 중...' : !selectedAddress ? '배송지를 등록해주세요' : `${totalPrice.toLocaleString()}원 결제하기`}
               </button>
             </div>
           </div>
@@ -504,6 +689,17 @@ const Order: React.FC = () => {
         selectedCouponId={selectedCoupon?.userCouponId || null}
         onSelect={handleCouponSelect}
         minOrderAmount={MIN_ORDER_AMOUNT}
+      />
+
+      {/* 배송지 관리 모달 */}
+      <AddressManageModal
+        isOpen={addressModalOpen}
+        onClose={() => setAddressModalOpen(false)}
+        onSelectAddress={(address) => {
+          setSelectedAddress(address);
+          setAddressModalOpen(false);
+        }}
+        selectedAddressId={selectedAddress?.id}
       />
     </div>
   );

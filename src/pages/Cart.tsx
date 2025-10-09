@@ -39,7 +39,7 @@ const Cart: React.FC = () => {
     const selectedItems = items.filter(item => item.isSelected);
     const selectedItemCount = selectedItems.length;
     const subTotal = selectedItems.reduce((sum, item) => sum + (item.price || 0) * item.qty, 0);
-    const shippingFee = subTotal >= 50000 ? 0 : 3000; // 5만원 이상 무료배송
+    const shippingFee = subTotal >= 50000 ? 0 : 2500; // 5만원 이상 무료배송
     const totalAmount = subTotal + shippingFee;
 
     return {

@@ -37,9 +37,9 @@ export type ReleaseCouponRequest = {
 };
 
 // 웰컴 쿠폰 발급
-export async function issueWelcomeCoupon(userId: number): Promise<WelcomeCouponResponse> {
+export async function issueWelcomeCoupon(): Promise<WelcomeCouponResponse> {
   return await post<WelcomeCouponResponse>(
-    `/api/users/${userId}/coupons/welcome`,
+    `/api/users/me/coupons/welcome`,
     undefined,
     { 
       credentials: 'include',
@@ -49,9 +49,9 @@ export async function issueWelcomeCoupon(userId: number): Promise<WelcomeCouponR
 }
 
 // 사용 가능한 쿠폰 목록 조회
-export async function getUsableCoupons(userId: number): Promise<UsableCouponDto[]> {
+export async function getUsableCoupons(): Promise<UsableCouponDto[]> {
   return await get<UsableCouponDto[]>(
-    `/api/users/${userId}/coupons/usable`,
+    `/api/users/me/coupons/usable`,
     { 
       credentials: 'include',
       auth: true 

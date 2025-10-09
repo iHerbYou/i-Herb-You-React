@@ -19,6 +19,10 @@ import BrandProducts from './pages/BrandProducts';
 import AllBrands from './pages/AllBrands';
 import Cart from './pages/Cart';
 import Order from './pages/Order';
+import Orders from './pages/Orders';
+import OrderDetail from './pages/OrderDetail';
+import OrderSuccess from './pages/OrderSuccess';
+import OrderFail from './pages/OrderFail';
 import Wishlist from './pages/Wishlist';
 import SharedWishlist from './pages/SharedWishlist';
 import Account from './pages/Account';
@@ -66,6 +70,12 @@ function App() {
                 <Route path="/brands/:brandId" element={<BrandProducts />} />
                 <Route path="/cart" element={<Cart />} />
                 <Route path="/order" element={<Order />} />
+                <Route path="/order/success" element={<OrderSuccess />} />
+                <Route path="/order/fail" element={<OrderFail />} />
+                <Route element={<RequireAuth />}>
+                  <Route path="/orders" element={<Orders />} />
+                  <Route path="/orders/:orderId" element={<OrderDetail />} />
+                </Route>
                 <Route path="/c/:topId" element={<CategoryList />} />
                 <Route path="/c/:topId/:midId" element={<CategoryList />} />
                 <Route path="/c/:topId/:midId/:subId" element={<CategoryList />} />

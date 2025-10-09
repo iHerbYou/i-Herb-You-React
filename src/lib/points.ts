@@ -101,9 +101,9 @@ export async function restorePoints(
 }
 
 // 포인트 잔액 조회
-export async function getPointBalance(userId: number): Promise<PointBalanceDto> {
+export async function getPointBalance(): Promise<PointBalanceDto> {
   return await get<PointBalanceDto>(
-    `/api/users/${userId}/points`,
+    `/api/users/me/points`,
     { 
       credentials: 'include',
       auth: true 
@@ -112,9 +112,9 @@ export async function getPointBalance(userId: number): Promise<PointBalanceDto> 
 }
 
 // 포인트 이력 조회
-export async function getPointHistory(userId: number): Promise<PointHistoryItemDto[]> {
+export async function getPointHistory(): Promise<PointHistoryItemDto[]> {
   return await get<PointHistoryItemDto[]>(
-    `/api/users/${userId}/points/history`,
+    `/api/users/me/points/history`,
     { 
       credentials: 'include',
       auth: true 

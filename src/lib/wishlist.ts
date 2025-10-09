@@ -61,7 +61,7 @@ export async function apiAddWishlist(productId: number): Promise<AddWishlistItem
 
 export async function apiDeleteWishlistItems(itemIds: number[]): Promise<DeleteItemsResponse> {
   const body: DeleteItemsRequest = { itemIds };
-  return await del<DeleteItemsResponse>('/api/wishlist/items', { body });
+  return await del<DeleteItemsResponse>('/api/wishlist/items', body);
 }
 
 // 위시리스트 공유 생성
